@@ -19,15 +19,13 @@ jobs:
         echo "MX_GIT_CACHE=refcache" >> ${GITHUB_ENV}
         echo "MX_PATH=${{ github.workspace }}/mx" >> ${GITHUB_ENV}
         echo "MX_PYTHON=python3" >> ${GITHUB_ENV}
-        echo "MX_VERSION=$(jq -r '.mx_version' common.json)" >> ${GITHUB_ENV}
         echo "LANG=en_US.UTF-8" >> ${GITHUB_ENV}
 
-    - name: Checkout GraalVM Source
-      uses: actions/checkout@v2
-      with:
-        path: graalvm
+    - name: Clone GraalVM Source
+      run: |
+        git clone --depth 1 https://github.com/oracle/graal.git graalvm
 
-    - name: Checkout mx Tool
+    - name: Clone mx Tool
       run: |
         git clone --depth 1 https://github.com/graalvm/mx.git
         echo "$(pwd)/mx" >> $GITHUB_PATH  # Add mx to PATH for all steps
