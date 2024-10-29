@@ -1,0 +1,45 @@
+name: Build GraalVM from Source
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+
+    - name: Set up SapMachine JDK 11
+      uses: actions/setup-java@v2
+      with:
+        distribution: 'sapmachine'
+        java-version: '11'
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential zlib1g-dev libffi-dev python3
+
+    - name: Clone GraalVM Source
+      run: |
+        git clone --depth 1 https://github.com/oracle/graal.git graalvm
+
+    - name: Clone mx Tool
+      run: |
+        git clone --depth 1 https://github.com/graalvm/mx.git
+        export PATH="$PATH:$(pwd)/mx"
+
+    - name: Build GraalVM
+      run: |
+        cd graalvm
+        ../mx/mx build  # Use mx from the cloned mx directory
+
+    - name: Verify Build
+      run: |
+        cd graalvm
+        ../mx/mx --version
