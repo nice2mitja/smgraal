@@ -30,6 +30,12 @@ jobs:
         git clone --depth 1 https://github.com/graalvm/mx.git
         echo "$(pwd)/mx" >> $GITHUB_PATH  # Add mx to PATH for all steps
 
+    - name: Set up SapMachine JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'sapmachine'
+        java-version: '17'
+
     - name: Install Other Dependencies
       run: |
         sudo apt-get update
@@ -47,16 +53,19 @@ jobs:
         key: ${{ runner.os }}-mx-${{ hashFiles('**/suite.py') }}
         restore-keys: ${{ runner.os }}-mx-
 
-    - name: Fetch LabsJDK
+    - name: Fetch Latest LabsJDK
       shell: bash
       run: |
         mkdir jdk-dl
-        ${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-latest --to jdk-dl --alias ${LABSJDK_HOME}
+        # Use the correct version of LabsJDK that meets JVMCI requirements
+        ${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-24+21-jvmci-b01 --to jdk-dl --alias ${LABSJDK_HOME}
 
     - name: Build GraalVM JDK
       shell: bash
       run: |
         cd graalvm/substratevm
+        # Set JVMCI_VERSION_CHECK to ignore (if necessary)
+        export JVMCI_VERSION_CHECK="ignore"
         ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build
         ln -s $(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home) ${GRAALVM_HOME}
         ${GRAALVM_HOME}/bin/native-image --version
