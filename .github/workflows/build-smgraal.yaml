@@ -51,8 +51,8 @@ jobs:
       shell: bash
       run: |
         mkdir jdk-dl
-        # Use the correct version of LabsJDK that meets JVMCI requirements
-        ${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-24+21-jvmci-b01 --to jdk-dl --alias ${LABSJDK_HOME}
+        # Use the latest version of LabsJDK
+        ${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-latest --to jdk-dl --alias ${LABSJDK_HOME}
 
     - name: Build GraalVM JDK
       shell: bash
