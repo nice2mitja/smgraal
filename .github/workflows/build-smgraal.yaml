@@ -11,19 +11,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v2
-
-    - name: Set up SapMachine JDK 11
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'sapmachine'
-        java-version: '21'
-
-    - name: Install Dependencies
+    - name: Set up environment variables
+      shell: bash
       run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential zlib1g-dev libffi-dev python3
+        echo "GRAALVM_HOME=${{ github.workspace }}/graalvm" >> ${GITHUB_ENV}
+        echo "LABSJDK_HOME=${{ github.workspace }}/labsjdk" >> ${GITHUB_ENV}
+        echo "MX_GIT_CACHE=refcache" >> ${GITHUB_ENV}
+        echo "MX_PATH=${{ github.workspace }}/mx" >> ${GITHUB_ENV}
+        echo "MX_PYTHON=python3.8" >> ${GITHUB_ENV}
+        echo "MX_VERSION=$(jq -r '.mx_version' common.json)" >> ${GITHUB_ENV}
+        echo "LANG=en_US.UTF-8" >> ${GITHUB_ENV}
 
     - name: Clone GraalVM Source
       run: |
@@ -32,14 +29,53 @@ jobs:
     - name: Clone mx Tool
       run: |
         git clone --depth 1 https://github.com/graalvm/mx.git
-        echo "$(pwd)/mx" >> $GITHUB_PATH   # Add mx to PATH for all steps
+        echo "$(pwd)/mx" >> $GITHUB_PATH  # Add mx to PATH for all steps
 
-    - name: Build GraalVM
+    - name: Set up SapMachine JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'sapmachine'
+        java-version: '17'
+
+    - name: Install Dependencies
       run: |
-        cd graalvm/compiler  # Navigate to the primary suite directory
-        mx build  # Call mx directly since it's now in PATH
+        sudo apt-get update
+        sudo apt-get install -y build-essential zlib1g-dev libffi-dev python3.8 jq
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.8'
+
+    - name: Update mx Cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.mx
+        key: ${{ runner.os }}-mx-${{ hashFiles('**/suite.py') }}
+        restore-keys: ${{ runner.os }}-mx-
+
+    - name: Fetch LabsJDK
+      shell: bash
+      run: |
+        mkdir jdk-dl
+        ${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-latest --to jdk-dl --alias ${LABSJDK_HOME}
+
+    - name: Build GraalVM JDK
+      shell: bash
+      run: |
+        cd graalvm/substratevm
+        ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build
+        ln -s $(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home) ${GRAALVM_HOME}
+        ${GRAALVM_HOME}/bin/native-image --version
+
+    - name: Set up JAVA_HOME with SapMachine (Optional)
+      if: ${{ inputs.java-version }} != ''
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'sapmachine'
+        java-version: '${{ inputs.java-version }}'
 
     - name: Verify Build
       run: |
         cd graalvm/compiler
-        mx --version
+        ${MX_PATH}/mx --version
