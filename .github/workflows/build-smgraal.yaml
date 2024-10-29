@@ -15,7 +15,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Set up SapMachine JDK 11
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v4  # Updated to version 4 for SapMachine compatibility
       with:
         distribution: 'sapmachine'
         java-version: '11'
@@ -36,10 +36,10 @@ jobs:
 
     - name: Build GraalVM
       run: |
-        cd graalvm
-        ../mx/mx build  # Use mx from the cloned mx directory
+        cd graalvm/compiler  # Navigate to the primary suite directory
+        ../mx/mx build
 
     - name: Verify Build
       run: |
-        cd graalvm
+        cd graalvm/compiler
         ../mx/mx --version
