@@ -18,15 +18,16 @@ jobs:
         echo "LABSJDK_HOME=${{ github.workspace }}/labsjdk" >> ${GITHUB_ENV}
         echo "MX_GIT_CACHE=refcache" >> ${GITHUB_ENV}
         echo "MX_PATH=${{ github.workspace }}/mx" >> ${GITHUB_ENV}
-        echo "MX_PYTHON=python3.8" >> ${GITHUB_ENV}
+        echo "MX_PYTHON=python3" >> ${GITHUB_ENV}
         echo "MX_VERSION=$(jq -r '.mx_version' common.json)" >> ${GITHUB_ENV}
         echo "LANG=en_US.UTF-8" >> ${GITHUB_ENV}
 
-    - name: Clone GraalVM Source
-      run: |
-        git clone --depth 1 https://github.com/oracle/graal.git graalvm
+    - name: Checkout GraalVM Source
+      uses: actions/checkout@v2
+      with:
+        path: graalvm
 
-    - name: Clone mx Tool
+    - name: Checkout mx Tool
       run: |
         git clone --depth 1 https://github.com/graalvm/mx.git
         echo "$(pwd)/mx" >> $GITHUB_PATH  # Add mx to PATH for all steps
@@ -37,15 +38,15 @@ jobs:
         distribution: 'sapmachine'
         java-version: '17'
 
-    - name: Install Dependencies
+    - name: Install Other Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential zlib1g-dev libffi-dev python3.8 jq
+        sudo apt-get install -y build-essential zlib1g-dev libffi-dev jq
 
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.8'
+        python-version: '3.x'  # Use the latest available Python 3
 
     - name: Update mx Cache
       uses: actions/cache@v4
