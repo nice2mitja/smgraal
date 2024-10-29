@@ -15,7 +15,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Set up SapMachine JDK 11
-      uses: actions/setup-java@v4  # Updated to version 4 for SapMachine compatibility
+      uses: actions/setup-java@v4
       with:
         distribution: 'sapmachine'
         java-version: '11'
@@ -32,14 +32,14 @@ jobs:
     - name: Clone mx Tool
       run: |
         git clone --depth 1 https://github.com/graalvm/mx.git
-        export PATH="$PATH:$(pwd)/mx"
+        echo "$(pwd)/mx" >> $GITHUB_PATH   # Add mx to PATH for all steps
 
     - name: Build GraalVM
       run: |
         cd graalvm/compiler  # Navigate to the primary suite directory
-        ../mx/mx build
+        mx build  # Call mx directly since it's now in PATH
 
     - name: Verify Build
       run: |
         cd graalvm/compiler
-        ../mx/mx --version
+        mx --version
