@@ -27,6 +27,11 @@ jobs:
         distribution: 'sapmachine'  # Use SAPMachine distribution
         java-version: '21'          # Use JDK 21
 
+    - name: Verify SAPMachine JDK Installation
+      run: |
+        echo "SAPMachine JDK 21 Version:"
+        java -version  # Output SAPMachine JDK version to confirm installation
+
     - name: Clone GraalVM Source
       run: |
         git clone --depth 1 https://github.com/oracle/graal.git  # Clone into default directory (graal)
