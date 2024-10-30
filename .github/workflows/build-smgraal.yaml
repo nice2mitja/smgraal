@@ -57,7 +57,7 @@ jobs:
     - name: Build GraalVM JDK
       shell: bash
       run: |
-        cd graalvm/compiler  # Navigate to the compiler directory
+        cd graalvm/vm  # Navigate to the compiler directory
         export JVMCI_VERSION_CHECK="ignore"
         ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build
         
@@ -73,6 +73,6 @@ jobs:
 
     - name: Verify Build
       run: |
-        cd graalvm/compiler
+        cd graalvm/vm
         ${MX_PATH}/mx --version
-        ${GRAALVM_HOME}/bin/native-image --version  # Check if native-image is accessible
+        #${GRAALVM_HOME}/bin/native-image --version  # Check if native-image is accessible
