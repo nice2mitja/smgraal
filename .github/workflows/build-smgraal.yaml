@@ -14,7 +14,7 @@ jobs:
     - name: Set up environment variables
       shell: bash
       run: |
-        echo "GRAALVM_HOME=${{ github.workspace }}/graalvm" >> ${GITHUB_ENV}
+        echo "GRAALVM_HOME=${{ github.workspace }}/graal" >> ${GITHUB_ENV}  # Update path to the standard directory
         echo "LABSJDK_HOME=${{ github.workspace }}/labsjdk" >> ${GITHUB_ENV}
         echo "MX_GIT_CACHE=refcache" >> ${GITHUB_ENV}
         echo "MX_PATH=${{ github.workspace }}/mx" >> ${GITHUB_ENV}
@@ -23,7 +23,7 @@ jobs:
 
     - name: Clone GraalVM Source
       run: |
-        git clone --depth 1 https://github.com/oracle/graal.git graalvm
+        git clone --depth 1 https://github.com/oracle/graal.git  # Clone into default directory (graal)
 
     - name: Clone mx Tool
       run: |
@@ -57,12 +57,21 @@ jobs:
     - name: Build GraalVM JDK
       shell: bash
       run: |
-        cd graalvm  # Navigate to the compiler directory
+        cd graal/compiler  # Navigate to the standard 'graal' directory
         export JVMCI_VERSION_CHECK="ignore"
-        ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build
+        echo "Start Build"
+        ${MX_PATH}/mx build
+        echo "run mx graalvm-show"
+        ${MX_PATH}/mx graalvm-show
+        echo "run mx graalvm-home"
+        ${MX_PATH}/mx graalvm-home
         
-        # Log the output of the build
+        echo "Listing contents of LABSJDK_HOME:"
+        echo "Command: ls -l ${LABSJDK_HOME}"
         ls -l ${LABSJDK_HOME}  # List the contents of LABSJDK_HOME
+
+        echo "Listing contents of GRAALVM_HOME:"
+        echo "Command: ls -l ${GRAALVM_HOME}"
         ls -l ${GRAALVM_HOME}  # List the contents of GRAALVM_HOME
 
         # Create a symbolic link to the GraalVM home directory
@@ -73,6 +82,6 @@ jobs:
 
     - name: Verify Build
       run: |
-        cd graalvm
+        cd graal/compiler
         ${MX_PATH}/mx --version
         ${GRAALVM_HOME}/bin/java -version
