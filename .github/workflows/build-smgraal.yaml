@@ -52,7 +52,8 @@ jobs:
       run: |
         mkdir jdk-dl
         # Use the latest version of LabsJDK
-        ${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-latest --to jdk-dl --alias ${LABSJDK_HOME}
+        #${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-latest --to jdk-dl --alias ${LABSJDK_HOME}
+        ${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-21 --to jdk-dl --alias ${LABSJDK_HOME}
 
     - name: Build GraalVM JDK
       shell: bash
