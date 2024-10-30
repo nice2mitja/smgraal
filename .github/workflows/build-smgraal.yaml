@@ -75,4 +75,4 @@ jobs:
       run: |
         cd graalvm/vm
         ${MX_PATH}/mx --version
-        #${GRAALVM_HOME}/bin/native-image --version  # Check if native-image is accessible
+        ${GRAALVM_HOME}/bin/java -version
