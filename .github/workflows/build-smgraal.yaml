@@ -14,12 +14,18 @@ jobs:
     - name: Set up environment variables
       shell: bash
       run: |
-        echo "GRAALVM_HOME=${{ github.workspace }}/graal" >> ${GITHUB_ENV}  # Update path to the standard directory
-        echo "LABSJDK_HOME=${{ github.workspace }}/labsjdk" >> ${GITHUB_ENV}
+        echo "GRAALVM_HOME=${{ github.workspace }}/graal" >> ${GITHUB_ENV}
+        echo "LABSJDK_HOME=${{ github.workspace }}/jdk-dl/labsjdk" >> ${GITHUB_ENV}  # Set LABSJDK_HOME to a unique path
         echo "MX_GIT_CACHE=refcache" >> ${GITHUB_ENV}
         echo "MX_PATH=${{ github.workspace }}/mx" >> ${GITHUB_ENV}
         echo "MX_PYTHON=python3" >> ${GITHUB_ENV}
         echo "LANG=en_US.UTF-8" >> ${GITHUB_ENV}
+
+    - name: Set up SAPMachine JDK 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'sapmachine'  # Use SAPMachine distribution
+        java-version: '21'          # Use JDK 21
 
     - name: Clone GraalVM Source
       run: |
@@ -47,26 +53,23 @@ jobs:
         key: ${{ runner.os }}-mx-${{ hashFiles('**/suite.py') }}
         restore-keys: ${{ runner.os }}-mx-
 
-    - name: Fetch Latest LabsJDK
+    - name: Fetch LabsJDK 21
       shell: bash
       run: |
-        mkdir jdk-dl
-        # Use the latest version of LabsJDK
-        #${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-latest --to jdk-dl --alias ${LABSJDK_HOME}
+        mkdir -p jdk-dl
+        # Fetch LabsJDK 21 and set to LABSJDK_HOME
         ${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-21 --to jdk-dl --alias ${LABSJDK_HOME}
 
     - name: Build GraalVM JDK
       shell: bash
       run: |
-        cd graal/compiler  # Navigate to the standard 'graal' directory
+        cd graal  # Navigate to the graal directory
         export JVMCI_VERSION_CHECK="ignore"
-        echo "Start Build"
-        ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build
-        echo "run mx graalvm-show"
-        ${MX_PATH}/mx graalvm-show
-        echo "run mx graalvm-home"
-        ${MX_PATH}/mx graalvm-home
         
+        # Use ${LABSJDK_HOME} explicitly as the JDK for building
+        ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build
+        
+        # Log the output of the build
         echo "Listing contents of LABSJDK_HOME:"
         echo "Command: ls -l ${LABSJDK_HOME}"
         ls -l ${LABSJDK_HOME}  # List the contents of LABSJDK_HOME
@@ -78,11 +81,8 @@ jobs:
         # Create a symbolic link to the GraalVM home directory
         ln -s $(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home) ${GRAALVM_HOME}
         
-        # Verify if native-image exists
-        # ls -l ${GRAALVM_HOME}/bin/native-image
-
     - name: Verify Build
       run: |
-        cd graal/compiler
+        cd graal
         ${MX_PATH}/mx --version
         ${GRAALVM_HOME}/bin/java -version
