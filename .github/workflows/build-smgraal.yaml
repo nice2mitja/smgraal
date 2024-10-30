@@ -92,5 +92,11 @@ jobs:
     - name: Verify Build
       run: |
         cd graal/compiler
+        echo "Command: ${MX_PATH}/mx --version"
         ${MX_PATH}/mx --version
+        echo "Command: ${MX_PATH}/mx graalvm-show"
+        ${MX_PATH}/mx graalvm-show
+        echo "Command: ${MX_PATH}/mx graalvm-home"
+        ${MX_PATH}/mx graalvm-home
+        
         ${GRAALVM_HOME}/bin/java -version  # Verify GraalVM build
