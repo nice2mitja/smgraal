@@ -71,7 +71,7 @@ jobs:
     - name: Build GraalVM JDK
       shell: bash
       run: |
-        cd graal  # Navigate to the graal directory
+        cd graal/compiler  # Navigate to the graal directory
         export JVMCI_VERSION_CHECK="ignore"
         
         # Ensure the correct path for --java-home
@@ -91,6 +91,6 @@ jobs:
         
     - name: Verify Build
       run: |
-        cd graal
+        cd graal/compiler
         ${MX_PATH}/mx --version
         ${GRAALVM_HOME}/bin/java -version  # Verify GraalVM build
