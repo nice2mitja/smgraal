@@ -88,6 +88,10 @@ jobs:
 
         # Create a symbolic link to the GraalVM home directory
         ln -s $(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home) ${GRAALVM_HOME}
+
+        echo "Listing contents of GRAALVM_HOME after ln:"
+        echo "Command: ls -l ${GRAALVM_HOME}"
+        ls -l ${GRAALVM_HOME}  # List the contents of GRAALVM_HOME
         
     - name: Verify Build
       run: |
