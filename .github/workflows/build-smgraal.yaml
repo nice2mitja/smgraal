@@ -1,3 +1,16 @@
+name: Build GraalVM from Source
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
     - name: Set up environment variables
       shell: bash
       run: |
@@ -11,22 +24,22 @@
     - name: Set up SAPMachine JDK 21
       uses: actions/setup-java@v4
       with:
-        distribution: 'sapmachine'
-        java-version: '21'
+        distribution: 'sapmachine'  # Use SAPMachine distribution
+        java-version: '21'          # Use JDK 21
 
     - name: Verify SAPMachine JDK Installation
       run: |
         echo "SAPMachine JDK 21 Version:"
-        java -version
+        java -version  # Output SAPMachine JDK version to confirm installation
 
     - name: Clone GraalVM Source
       run: |
-        git clone --depth 1 https://github.com/oracle/graal.git
+        git clone --depth 1 https://github.com/oracle/graal.git  # Clone into default directory (graal)
 
     - name: Clone mx Tool
       run: |
         git clone --depth 1 https://github.com/graalvm/mx.git
-        echo "$(pwd)/mx" >> $GITHUB_PATH
+        echo "$(pwd)/mx" >> $GITHUB_PATH  # Add mx to PATH for all steps
 
     - name: Install Other Dependencies
       run: |
@@ -36,7 +49,7 @@
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.x'
+        python-version: '3.x'  # Use the latest available Python 3
 
     - name: Update mx Cache
       uses: actions/cache@v4
@@ -53,12 +66,12 @@
         ${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-21 --to jdk-dl
         # Update LABSJDK_HOME to point to the actual JDK directory within jdk-dl
         export LABSJDK_HOME=$(find ${GITHUB_WORKSPACE}/jdk-dl -maxdepth 1 -type d -name 'labsjdk-*')
-        echo "LABSJDK_HOME=${LABSJDK_HOME}" >> ${GITHUB_ENV}
+        echo "LABSJDK_HOME=${LABSJDK_HOME}" >> ${GITHUB_ENV}  # Set LABSJDK_HOME in the environment
 
     - name: Build GraalVM JDK
       shell: bash
       run: |
-        cd graal
+        cd graal  # Navigate to the graal directory
         export JVMCI_VERSION_CHECK="ignore"
         
         # Ensure the correct path for --java-home
@@ -67,11 +80,11 @@
         # Log the output of the build
         echo "Listing contents of LABSJDK_HOME:"
         echo "Command: ls -l ${LABSJDK_HOME}"
-        ls -l ${LABSJDK_HOME}
+        ls -l ${LABSJDK_HOME}  # List the contents of LABSJDK_HOME
 
         echo "Listing contents of GRAALVM_HOME:"
         echo "Command: ls -l ${GRAALVM_HOME}"
-        ls -l ${GRAALVM_HOME}
+        ls -l ${GRAALVM_HOME}  # List the contents of GRAALVM_HOME
 
         # Create a symbolic link to the GraalVM home directory
         ln -s $(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home) ${GRAALVM_HOME}
@@ -80,4 +93,4 @@
       run: |
         cd graal
         ${MX_PATH}/mx --version
-        ${GRAALVM_HOME}/bin/java -version
+        ${GRAALVM_HOME}/bin/java -version  # Verify GraalVM build
