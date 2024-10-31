@@ -95,7 +95,7 @@ jobs:
         ls -l ${GRAALVM_HOME}
         
         echo "Listing contents of GRAALVM_HOME/lib:"
-        ls -altr ${GRAALVM_HOME}/lib 
+        ls -altr ${GRAALVM_HOME}/lib/*
 
     - name: Verify Build
       run: |
