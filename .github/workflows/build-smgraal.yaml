@@ -14,7 +14,8 @@ jobs:
     - name: Set up environment variables
       shell: bash
       run: |
-        echo "LABSJDK_HOME=${{ github.workspace }}/jdk-dl" >> ${GITHUB_ENV}  # Initial path for LabsJDK download
+        echo "Setting environment variables..."
+        echo "LABSJDK_HOME=${{ github.workspace }}/jdk-dl" >> ${GITHUB_ENV}
         echo "MX_GIT_CACHE=refcache" >> ${GITHUB_ENV}
         echo "MX_PATH=${{ github.workspace }}/mx" >> ${GITHUB_ENV}
         echo "MX_PYTHON=python3" >> ${GITHUB_ENV}
@@ -28,20 +29,23 @@ jobs:
 
     - name: Verify SAPMachine JDK Installation
       run: |
-        echo "SAPMachine JDK 21 Version:"
+        echo "Verifying SAPMachine JDK installation..."
         java -version  # Output SAPMachine JDK version to confirm installation
 
     - name: Clone GraalVM Source
       run: |
+        echo "Cloning GraalVM source..."
         git clone --depth 1 https://github.com/oracle/graal.git
 
     - name: Clone mx Tool
       run: |
+        echo "Cloning mx tool..."
         git clone --depth 1 https://github.com/graalvm/mx.git
         echo "$(pwd)/mx" >> $GITHUB_PATH  # Add mx to PATH for all steps
 
     - name: Install Other Dependencies
       run: |
+        echo "Installing other dependencies..."
         sudo apt-get update
         sudo apt-get install -y build-essential zlib1g-dev libffi-dev jq
 
@@ -60,7 +64,9 @@ jobs:
     - name: Fetch LabsJDK 21
       shell: bash
       run: |
+        echo "Fetching LabsJDK 21..."
         mkdir -p jdk-dl
+        echo "${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-21 --to jdk-dl"
         ${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-21 --to jdk-dl
         export LABSJDK_HOME=$(find ${GITHUB_WORKSPACE}/jdk-dl -maxdepth 1 -type d -name 'labsjdk-*')
         echo "LABSJDK_HOME=${LABSJDK_HOME}" >> ${GITHUB_ENV}
@@ -68,13 +74,16 @@ jobs:
     - name: Build GraalVM JDK
       shell: bash
       run: |
-        cd graal/compiler  # Navigate to the graal directory
+        echo "Building GraalVM JDK..."
+        cd graal/compiler
         export JVMCI_VERSION_CHECK="ignore"
         
         # Build using the correct path for --java-home
+        echo "Command: ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build"
         ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build
         
         # Set GRAALVM_HOME to the exact location output by graalvm-home
+        echo "Setting GRAALVM_HOME using graalvm-home..."
         export GRAALVM_HOME=$(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home)
         echo "GRAALVM_HOME=${GRAALVM_HOME}" >> ${GITHUB_ENV}
 
@@ -83,23 +92,29 @@ jobs:
         ls -l ${LABSJDK_HOME}
 
         echo "Listing contents of GRAALVM_HOME:"
-        ls -l ${GRAALVM_HOME}  # List the contents of GRAALVM_HOME
-        
+        ls -l ${GRAALVM_HOME}
+
     - name: Verify Build
       run: |
         cd graal/compiler
-        echo "Running mx version check and GraalVM home verification"
+        echo "Verifying mx version and GraalVM home..."
+        echo "Command: ${MX_PATH}/mx --version"
         ${MX_PATH}/mx --version
+        echo "Command: ${MX_PATH}/mx graalvm-show"
         ${MX_PATH}/mx graalvm-show
+        echo "Command: ${MX_PATH}/mx graalvm-home"
         ${MX_PATH}/mx graalvm-home
+        echo "Command: ls ${GRAALVM_HOME}"
         ls ${GRAALVM_HOME}
         
-        # Display Java version from the GraalVM JIT installation
+        echo "Command: ${GRAALVM_HOME}/bin/java -version"
         ${GRAALVM_HOME}/bin/java -version
 
     - name: Verify Graal JIT Usage with JVM Flags
       shell: bash
       run: |
+        echo "Verifying Graal JIT usage with JVM flags..."
+        echo "Command: java -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -XX:+UseJVMCICompiler -XX:+UseGraalJIT --module-path=${GRAALVM_HOME}/lib -XX:JVMCILibPath=${GRAALVM_HOME}/lib -XX:+PrintFlagsFinal -version"
         java \
           -XX:+UnlockExperimentalVMOptions \
           -XX:+EnableJVMCI \
@@ -113,7 +128,9 @@ jobs:
     - name: Compile and Run Microbenchmark to Test Graal JIT
       shell: bash
       run: |
+        echo "Compiling and running microbenchmark to test Graal JIT..."
         # Write a Java microbenchmark to verify Graal JIT compilation
+        echo "Writing GraalJITTest.java..."
         cat <<EOF > GraalJITTest.java
         public class GraalJITTest {
             public static void main(String[] args) {
@@ -133,11 +150,18 @@ jobs:
         EOF
 
         # Compile the test
+        echo "Compiling GraalJITTest.java..."
         javac GraalJITTest.java
 
         # Run with Graal-specific logging to verify Graal JIT usage
+        echo "Running GraalJITTest with Graal JIT enabled..."
+        echo "Command: java -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -XX:+UseJVMCICompiler -XX:+UseGraalJIT -Dgraal.PrintCompilation=true --module-path=${GRAALVM_HOME}/lib -XX:JVMCILibPath=${GRAALVM_HOME}/lib GraalJITTest"
         java \
           -XX:+UnlockExperimentalVMOptions \
           -XX:+EnableJVMCI \
           -XX:+UseJVMCICompiler \
-          -XX:+UseGraal
+          -XX:+UseGraalJIT \
+          -Dgraal.PrintCompilation=true \
+          --module-path=${GRAALVM_HOME}/lib \
+          -XX:JVMCILibPath=${GRAALVM_HOME}/lib \
+          GraalJITTest
