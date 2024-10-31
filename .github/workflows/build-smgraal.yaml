@@ -24,8 +24,8 @@ jobs:
     - name: Set up SAPMachine JDK 21
       uses: actions/setup-java@v4
       with:
-        distribution: 'sapmachine'  # Use SAPMachine distribution
-        java-version: '21'          # Use JDK 21
+        distribution: 'sapmachine'
+        java-version: '21'
 
     - name: Verify SAPMachine JDK Installation
       run: |
@@ -34,7 +34,7 @@ jobs:
 
     - name: Clone GraalVM Source
       run: |
-        git clone --depth 1 https://github.com/oracle/graal.git  # Clone into default directory (graal)
+        git clone --depth 1 https://github.com/oracle/graal.git
 
     - name: Clone mx Tool
       run: |
@@ -49,7 +49,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.x'  # Use the latest available Python 3
+        python-version: '3.x'
 
     - name: Update mx Cache
       uses: actions/cache@v4
@@ -62,38 +62,22 @@ jobs:
       shell: bash
       run: |
         mkdir -p jdk-dl
-        # Fetch LabsJDK 21 into the jdk-dl directory
         ${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-21 --to jdk-dl
-        # Update LABSJDK_HOME to point to the actual JDK directory within jdk-dl
         export LABSJDK_HOME=$(find ${GITHUB_WORKSPACE}/jdk-dl -maxdepth 1 -type d -name 'labsjdk-*')
-        echo "LABSJDK_HOME=${LABSJDK_HOME}" >> ${GITHUB_ENV}  # Set LABSJDK_HOME in the environment
+        echo "LABSJDK_HOME=${LABSJDK_HOME}" >> ${GITHUB_ENV}
 
     - name: Build GraalVM Compiler
       shell: bash
       run: |
-        cd graal/compiler  # Navigate to the graal/compiler directory
+        cd graal/compiler
         export JVMCI_VERSION_CHECK="ignore"
-        
-        # Ensure the correct path for --java-home
         ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build
         
-        # Log the output of the build
-        echo "Listing contents of LABSJDK_HOME:"
-        echo "Command: ls -l ${LABSJDK_HOME}"
-        ls -l ${LABSJDK_HOME}  # List the contents of LABSJDK_HOME
-
-        echo "Listing contents of GRAALVM_HOME:"
-        echo "Command: ls -l ${GRAALVM_HOME}"
-        ls -l ${GRAALVM_HOME}  # List the contents of GRAALVM_HOME
-
-        # Create a symbolic link to the GraalVM home directory
         ln -s $(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home) ${GRAALVM_HOME}
 
-    - name: Use Graal Compiler with SapMachine
+    - name: Verify Graal JIT Usage with JVM Flags
       shell: bash
       run: |
-        # Run Java using the Graal compiler as the JIT with SapMachine
-        export JAVA_HOME=${{ env.JAVA_HOME }}  # JAVA_HOME set by actions/setup-java
         java \
           -XX:+UnlockExperimentalVMOptions \
           -XX:+EnableJVMCI \
@@ -101,4 +85,41 @@ jobs:
           -XX:+UseGraalJIT \
           --module-path=${GRAALVM_HOME}/lib \
           -XX:JVMCILibPath=${GRAALVM_HOME}/lib \
-          -version
+          -XX:+PrintFlagsFinal \
+          -version | grep -iE "UseGraalJIT|EnableJVMCI|JVMCI"
+
+    - name: Compile and Run Microbenchmark to Test Graal JIT
+      shell: bash
+      run: |
+        # Write a Java microbenchmark to verify Graal JIT compilation
+        cat <<EOF > GraalJITTest.java
+        public class GraalJITTest {
+            public static void main(String[] args) {
+                for (int i = 0; i < 100_000; i++) {
+                    compute(i);
+                }
+            }
+
+            public static long compute(int x) {
+                long result = 0;
+                for (int i = 0; i < 10_000; i++) {
+                    result += Math.sqrt(x * i);
+                }
+                return result;
+            }
+        }
+        EOF
+
+        # Compile the test
+        javac GraalJITTest.java
+
+        # Run with Graal-specific logging to verify Graal JIT usage
+        java \
+          -XX:+UnlockExperimentalVMOptions \
+          -XX:+EnableJVMCI \
+          -XX:+UseJVMCICompiler \
+          -XX:+UseGraalJIT \
+          -Dgraal.PrintCompilation=true \
+          --module-path=${GRAALVM_HOME}/lib \
+          -XX:JVMCILibPath=${GRAALVM_HOME}/lib \
+          GraalJITTest
