@@ -1,4 +1,4 @@
-name: Build GraalVM from Source
+name: Build and Use GraalVM Compiler with SapMachine
 
 on:
   push:
@@ -68,10 +68,10 @@ jobs:
         export LABSJDK_HOME=$(find ${GITHUB_WORKSPACE}/jdk-dl -maxdepth 1 -type d -name 'labsjdk-*')
         echo "LABSJDK_HOME=${LABSJDK_HOME}" >> ${GITHUB_ENV}  # Set LABSJDK_HOME in the environment
 
-    - name: Build GraalVM JDK
+    - name: Build GraalVM Compiler
       shell: bash
       run: |
-        cd graal/compiler  # Navigate to the graal directory
+        cd graal/compiler  # Navigate to the graal/compiler directory
         export JVMCI_VERSION_CHECK="ignore"
         
         # Ensure the correct path for --java-home
@@ -89,21 +89,16 @@ jobs:
         # Create a symbolic link to the GraalVM home directory
         ln -s $(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home) ${GRAALVM_HOME}
 
-        echo "Listing contents of GRAALVM_HOME after ln:"
-        echo "Command: ls -l ${GRAALVM_HOME}"
-        ls -l ${GRAALVM_HOME}  # List the contents of GRAALVM_HOME
-        
-    - name: Verify Build
+    - name: Use Graal Compiler with SapMachine
+      shell: bash
       run: |
-        cd graal/compiler
-        echo "Command: ${MX_PATH}/mx --version"
-        ${MX_PATH}/mx --version
-        echo "Command: ${MX_PATH}/mx graalvm-show"
-        ${MX_PATH}/mx graalvm-show
-        echo "Command: ${MX_PATH}/mx graalvm-home"
-        ${MX_PATH}/mx graalvm-home
-        echo "Command: ls mx graalvm-home"
-        ls $(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home)
-        
-        echo "Command: $(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home)/bin/java -version"
-        $(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home)/bin/java -version
+        # Run Java using the Graal compiler as the JIT with SapMachine
+        export JAVA_HOME=${{ env.JAVA_HOME }}  # JAVA_HOME set by actions/setup-java
+        java \
+          -XX:+UnlockExperimentalVMOptions \
+          -XX:+EnableJVMCI \
+          -XX:+UseJVMCICompiler \
+          -XX:+UseGraal \
+          --module-path=${GRAALVM_HOME}/lib \
+          -XX:JVMCILibPath=${GRAALVM_HOME}/lib \
+          -version
