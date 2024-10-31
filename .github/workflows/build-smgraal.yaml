@@ -66,14 +66,45 @@ jobs:
         export LABSJDK_HOME=$(find ${GITHUB_WORKSPACE}/jdk-dl -maxdepth 1 -type d -name 'labsjdk-*')
         echo "LABSJDK_HOME=${LABSJDK_HOME}" >> ${GITHUB_ENV}
 
-    - name: Build GraalVM Compiler
+     - name: Build GraalVM JDK
       shell: bash
       run: |
-        cd graal/compiler
+        cd graal/compiler  # Navigate to the graal directory
         export JVMCI_VERSION_CHECK="ignore"
+        
+        # Ensure the correct path for --java-home
         ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build
         
+        # Log the output of the build
+        echo "Listing contents of LABSJDK_HOME:"
+        echo "Command: ls -l ${LABSJDK_HOME}"
+        ls -l ${LABSJDK_HOME}  # List the contents of LABSJDK_HOME
+
+        echo "Listing contents of GRAALVM_HOME:"
+        echo "Command: ls -l ${GRAALVM_HOME}"
+        ls -l ${GRAALVM_HOME}  # List the contents of GRAALVM_HOME
+
+        # Create a symbolic link to the GraalVM home directory
         ln -s $(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home) ${GRAALVM_HOME}
+
+        echo "Listing contents of GRAALVM_HOME after ln:"
+        echo "Command: ls -l ${GRAALVM_HOME}"
+        ls -l ${GRAALVM_HOME}  # List the contents of GRAALVM_HOME
+        
+    - name: Verify Build
+      run: |
+        cd graal/compiler
+        echo "Command: ${MX_PATH}/mx --version"
+        ${MX_PATH}/mx --version
+        echo "Command: ${MX_PATH}/mx graalvm-show"
+        ${MX_PATH}/mx graalvm-show
+        echo "Command: ${MX_PATH}/mx graalvm-home"
+        ${MX_PATH}/mx graalvm-home
+        echo "Command: ls mx graalvm-home"
+        ls $(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home)
+        
+        echo "Command: $(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home)/bin/java -version"
+        $(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home)/bin/java -version
 
     - name: Verify Graal JIT Usage with JVM Flags
       shell: bash
