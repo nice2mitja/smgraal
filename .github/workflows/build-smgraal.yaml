@@ -98,7 +98,7 @@ jobs:
           -XX:+UnlockExperimentalVMOptions \
           -XX:+EnableJVMCI \
           -XX:+UseJVMCICompiler \
-          -XX:+UseGraal \
+          -XX:+UseGraalJIT \
           --module-path=${GRAALVM_HOME}/lib \
           -XX:JVMCILibPath=${GRAALVM_HOME}/lib \
           -version
