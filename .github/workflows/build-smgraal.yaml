@@ -97,6 +97,21 @@ jobs:
         echo "Listing contents of GRAALVM_HOME/lib:"
         ls -altr ${GRAALVM_HOME}/lib/*
 
+    - name: Copy libjvmcicompiler.so to SapMachine JDK
+      shell: bash
+      run: |
+        echo "Copying libjvmcicompiler.so to the SapMachine JDK lib directory..."
+        LIBGRAAL_PATH="${GITHUB_WORKSPACE}/graal/sdk/mxbuild/linux-amd64/GRAALVM_LIBGRAAL_JAVA21/graalvm-libgraal-openjdk-21.0.2+13.1/lib/libjvmcicompiler.so"
+        SAP_JDK_LIB_DIR="/opt/hostedtoolcache/Java_SapMachine_jdk/21.0.5/x64/lib"
+        
+        if [ -f "$LIBGRAAL_PATH" ]; then
+          sudo cp "$LIBGRAAL_PATH" "$SAP_JDK_LIB_DIR"
+          echo "libjvmcicompiler.so successfully copied to ${SAP_JDK_LIB_DIR}"
+        else
+          echo "libjvmcicompiler.so not found at ${LIBGRAAL_PATH}"
+          exit 1
+        fi
+
     - name: Verify Build
       run: |
         cd graal/vm
