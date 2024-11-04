@@ -175,3 +175,16 @@ jobs:
           -XX:+UseGraalJIT \
           -Dgraal.PrintCompilation=true \
           GraalJITTest
+
+    - name: Output hs_err Log Files if They Exist
+      shell: bash
+      run: |
+        echo "Checking for hs_err log files..."
+        for file in ${GITHUB_WORKSPACE}/hs_err_pid*.log; do
+          if [ -f "$file" ]; then
+            echo "=== Contents of $file ==="
+            cat "$file"
+          else
+            echo "No hs_err log files found."
+          fi
+        done
