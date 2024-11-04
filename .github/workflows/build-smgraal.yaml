@@ -120,7 +120,7 @@ jobs:
         echo "Command: java -XX:+UnlockExperimentalVMOptions -XX:+UseGraalJIT -XX:JVMCILibPath=${GRAALVM_HOME}/lib -XX:+PrintFlagsFinal -version"
         java \
           -XX:+UnlockExperimentalVMOptions \
-          -XX:+UseGraalJIT
+          -XX:+UseGraalJIT \
           -XX:JVMCILibPath=${GRAALVM_HOME}/lib \
           -XX:+PrintFlagsFinal \
           -version | grep -iE "UseGraalJIT|EnableJVMCI|JVMCI"
@@ -158,7 +158,7 @@ jobs:
         echo "Command: java -XX:+UnlockExperimentalVMOptions -XX:+UseGraalJIT -Dgraal.PrintCompilation=true -XX:JVMCILibPath=${GRAALVM_HOME}/lib GraalJITTest"
         java \
           -XX:+UnlockExperimentalVMOptions \
-          -XX:+UseGraalJIT
+          -XX:+UseGraalJIT \
           -Dgraal.PrintCompilation=true \
           -XX:JVMCILibPath=${GRAALVM_HOME}/lib \
           GraalJITTest
