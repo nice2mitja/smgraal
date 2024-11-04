@@ -1,4 +1,4 @@
-name: Build and Use GraalVM with LibGraal
+name: Build and Use GraalVM LibGraal with SapMachine
 
 on:
   push:
@@ -75,16 +75,16 @@ jobs:
       shell: bash
       run: |
         echo "Building GraalVM LibGraal..."
-        cd graal/sdk
+        cd graal/vm
         export JVMCI_VERSION_CHECK="ignore"
         
-        # Build libgraal using the correct path for --java-home
-        echo "Command: ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build libgraal"
-        ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build libgraal
+        # Build libgraal with the --env libgraal flag
+        echo "Command: ${MX_PATH}/mx --env libgraal --java-home=${LABSJDK_HOME} build"
+        ${MX_PATH}/mx --env libgraal --java-home=${LABSJDK_HOME} build
         
-        # Set GRAALVM_HOME to the exact location output by graalvm-home
-        echo "Setting GRAALVM_HOME using graalvm-home..."
-        export GRAALVM_HOME=$(${MX_PATH}/mx --java-home=${LABSJDK_HOME} graalvm-home)
+        # Set GRAALVM_HOME to the exact location output by graalvm-home with --env libgraal
+        echo "Setting GRAALVM_HOME using graalvm-home with libgraal environment..."
+        export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal --java-home=${LABSJDK_HOME} graalvm-home)
         echo "GRAALVM_HOME=${GRAALVM_HOME}" >> ${GITHUB_ENV}
 
         # Log the contents of the build directories for verification
@@ -99,7 +99,7 @@ jobs:
 
     - name: Verify Build
       run: |
-        cd graal/sdk
+        cd graal/vm
         echo "Verifying mx version and GraalVM home..."
         echo "Command: ${MX_PATH}/mx --version"
         ${MX_PATH}/mx --version
