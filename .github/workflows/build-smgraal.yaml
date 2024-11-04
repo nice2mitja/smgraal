@@ -117,13 +117,11 @@ jobs:
       shell: bash
       run: |
         echo "Verifying Graal JIT usage with JVM flags..."
-        echo "Command: java -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -XX:+UseJVMCICompiler -XX:+UseGraalJIT --module-path=${GRAALVM_HOME}/lib -XX:JVMCILibPath=${GRAALVM_HOME}/lib -XX:+PrintFlagsFinal -version"
+        echo "Command: java -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -XX:+UseJVMCICompiler -XX:JVMCILibPath=${GRAALVM_HOME}/lib -XX:+PrintFlagsFinal -version"
         java \
           -XX:+UnlockExperimentalVMOptions \
           -XX:+EnableJVMCI \
           -XX:+UseJVMCICompiler \
-          -XX:+UseGraalJIT \
-          --module-path=${GRAALVM_HOME}/lib \
           -XX:JVMCILibPath=${GRAALVM_HOME}/lib \
           -XX:+PrintFlagsFinal \
           -version | grep -iE "UseGraalJIT|EnableJVMCI|JVMCI"
@@ -158,13 +156,11 @@ jobs:
 
         # Run with Graal-specific logging to verify Graal JIT usage
         echo "Running GraalJITTest with Graal JIT enabled..."
-        echo "Command: java -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -XX:+UseJVMCICompiler -XX:+UseGraalJIT -Dgraal.PrintCompilation=true --module-path=${GRAALVM_HOME}/lib -XX:JVMCILibPath=${GRAALVM_HOME}/lib GraalJITTest"
+        echo "Command: java -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -XX:+UseJVMCICompiler -Dgraal.PrintCompilation=true -XX:JVMCILibPath=${GRAALVM_HOME}/lib GraalJITTest"
         java \
           -XX:+UnlockExperimentalVMOptions \
           -XX:+EnableJVMCI \
           -XX:+UseJVMCICompiler \
-          -XX:+UseGraalJIT \
           -Dgraal.PrintCompilation=true \
-          --module-path=${GRAALVM_HOME}/lib \
           -XX:JVMCILibPath=${GRAALVM_HOME}/lib \
           GraalJITTest
