@@ -1,4 +1,4 @@
-name: Build and Use GraalVM Compiler with SapMachine
+name: Build and Use GraalVM with LibGraal
 
 on:
   push:
@@ -71,16 +71,16 @@ jobs:
         export LABSJDK_HOME=$(find ${GITHUB_WORKSPACE}/jdk-dl -maxdepth 1 -type d -name 'labsjdk-*')
         echo "LABSJDK_HOME=${LABSJDK_HOME}" >> ${GITHUB_ENV}
 
-    - name: Build GraalVM JDK
+    - name: Build GraalVM LibGraal
       shell: bash
       run: |
-        echo "Building GraalVM JDK..."
-        cd graal/compiler
+        echo "Building GraalVM LibGraal..."
+        cd graal/sdk
         export JVMCI_VERSION_CHECK="ignore"
         
-        # Build using the correct path for --java-home
-        echo "Command: ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build"
-        ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build
+        # Build libgraal using the correct path for --java-home
+        echo "Command: ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build libgraal"
+        ${MX_PATH}/mx --java-home=${LABSJDK_HOME} build libgraal
         
         # Set GRAALVM_HOME to the exact location output by graalvm-home
         echo "Setting GRAALVM_HOME using graalvm-home..."
@@ -99,7 +99,7 @@ jobs:
 
     - name: Verify Build
       run: |
-        cd graal/compiler
+        cd graal/sdk
         echo "Verifying mx version and GraalVM home..."
         echo "Command: ${MX_PATH}/mx --version"
         ${MX_PATH}/mx --version
