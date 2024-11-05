@@ -25,7 +25,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         distribution: 'sapmachine'
-        java-version: '23'
+        java-version: '21.0.4'
 
     - name: Verify SAPMachine JDK Installation
       run: |
@@ -105,7 +105,7 @@ jobs:
       run: |
         echo "Copying libjvmcicompiler.so to the SapMachine JDK lib directory..."
         LIBGRAAL_PATH="${GITHUB_WORKSPACE}/graal/sdk/mxbuild/linux-amd64/GRAALVM_LIBGRAAL_JAVA21/graalvm-libgraal-openjdk-21.0.2+13.1/lib/libjvmcicompiler.so"
-        SAP_JDK_LIB_DIR="/opt/hostedtoolcache/Java_SapMachine_jdk/23.0.1/x64/lib"
+        SAP_JDK_LIB_DIR="/opt/hostedtoolcache/Java_SapMachine_jdk/21.0.4/x64/lib"
         
         if [ -f "$LIBGRAAL_PATH" ]; then
           sudo cp "$LIBGRAAL_PATH" "$SAP_JDK_LIB_DIR"
