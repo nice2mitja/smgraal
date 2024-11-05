@@ -68,7 +68,7 @@ jobs:
         export JVMCI_VERSION_CHECK="ignore"
         
         # Build libgraal with additional flags
-        echo "Command: ${MX_PATH}/mx --env libgraal --extra-image-builder-argument=-H:-DeleteLocalSymbols --extra-image-builder-argument=-H:+PreserveFramePointer --java-home=${LABSJDK_HOME} build"
+        echo "Command: ${MX_PATH}/mx --env libgraal --extra-image-builder-argument=-H:-DeleteLocalSymbols --extra-image-builder-argument=-H:+PreserveFramePointer --java-home=${JAVA_HOME} build"
         ${MX_PATH}/mx --env libgraal \
           --extra-image-builder-argument=-H:-DeleteLocalSymbols \
           --extra-image-builder-argument=-H:+PreserveFramePointer \
