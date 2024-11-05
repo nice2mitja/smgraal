@@ -15,7 +15,6 @@ jobs:
       shell: bash
       run: |
         echo "Setting environment variables..."
-        echo "LABSJDK_HOME=${{ github.workspace }}/jdk-dl" >> ${GITHUB_ENV}
         echo "MX_GIT_CACHE=refcache" >> ${GITHUB_ENV}
         echo "MX_PATH=${{ github.workspace }}/mx" >> ${GITHUB_ENV}
         echo "MX_PYTHON=python3" >> ${GITHUB_ENV}
@@ -61,16 +60,6 @@ jobs:
         key: ${{ runner.os }}-mx-${{ hashFiles('**/suite.py') }}
         restore-keys: ${{ runner.os }}-mx-
 
-    - name: Fetch LabsJDK 21
-      shell: bash
-      run: |
-        echo "Fetching LabsJDK 21..."
-        mkdir -p jdk-dl
-        echo "${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-21 --to jdk-dl"
-        ${MX_PATH}/mx fetch-jdk --jdk-id labsjdk-ce-21 --to jdk-dl
-        export LABSJDK_HOME=$(find ${GITHUB_WORKSPACE}/jdk-dl -maxdepth 1 -type d -name 'labsjdk-*')
-        echo "LABSJDK_HOME=${LABSJDK_HOME}" >> ${GITHUB_ENV}
-
     - name: Build GraalVM LibGraal
       shell: bash
       run: |
@@ -83,17 +72,14 @@ jobs:
         ${MX_PATH}/mx --env libgraal \
           --extra-image-builder-argument=-H:-DeleteLocalSymbols \
           --extra-image-builder-argument=-H:+PreserveFramePointer \
-          --java-home=${LABSJDK_HOME} build
+          --java-home=${JAVA_HOME} build
         
         # Set GRAALVM_HOME to the exact location output by graalvm-home with --env libgraal
         echo "Setting GRAALVM_HOME using graalvm-home with libgraal environment..."
-        export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal --java-home=${LABSJDK_HOME} graalvm-home)
+        export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal --java-home=${JAVA_HOME} graalvm-home)
         echo "GRAALVM_HOME=${GRAALVM_HOME}" >> ${GITHUB_ENV}
 
         # Log the contents of the build directories for verification
-        echo "Listing contents of LABSJDK_HOME:"
-        ls -l ${LABSJDK_HOME}
-
         echo "Listing contents of GRAALVM_HOME:"
         ls -l ${GRAALVM_HOME}
         
