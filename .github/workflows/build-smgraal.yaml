@@ -26,6 +26,9 @@ jobs:
         git clone --branch sapmachine-21.0.4 --depth 1 https://github.com/SAP/SapMachine.git
         cd SapMachine
 
+        echo "Setting executable permissions for configure script..."
+        chmod +x ./configure  # Ensure configure is executable
+
         echo "Configuring and building SapMachine JDK..."
         ./configure
         make graal-builder-image
