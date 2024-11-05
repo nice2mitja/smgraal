@@ -68,11 +68,8 @@ jobs:
         export JVMCI_VERSION_CHECK="ignore"
         
         # Build libgraal with additional flags
-        echo "Command: ${MX_PATH}/mx --env libgraal --extra-image-builder-argument=-H:-DeleteLocalSymbols --extra-image-builder-argument=-H:+PreserveFramePointer --java-home=${JAVA_HOME} build"
-        ${MX_PATH}/mx --env libgraal \
-         # --extra-image-builder-argument=-H:-DeleteLocalSymbols \
-         # --extra-image-builder-argument=-H:+PreserveFramePointer \
-          --java-home=${JAVA_HOME} build
+        echo "Command: ${MX_PATH}/mx --env libgraal --java-home=${JAVA_HOME} build"
+        ${MX_PATH}/mx --env libgraal --java-home=${JAVA_HOME} build
         
         # Set GRAALVM_HOME to the exact location output by graalvm-home with --env libgraal
         echo "Setting GRAALVM_HOME using graalvm-home with libgraal environment..."
