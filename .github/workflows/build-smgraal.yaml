@@ -24,19 +24,11 @@ jobs:
       run: |
         echo "Installing other dependencies..."
         sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          zlib1g-dev \
-          libffi-dev \
-          jq \
-          libasound2-dev \
-          libcups2-dev \
-          libx11-dev \
-          libxext-dev \
-          libxrender-dev \
-          libxrandr-dev \
-          libxtst-dev \
-          libxt-dev
+        sudo apt-get install -y build-essential zlib1g-dev libffi-dev \
+                                libasound2-dev libcups2-dev \
+                                libx11-dev libxext-dev \
+                                libxrender-dev libxrandr-dev \
+                                libxtst-dev libxt-dev
 
     - name: Clone and Build SapMachine JDK from Source
       run: |
@@ -61,36 +53,20 @@ jobs:
 
     - name: Clone GraalVM Source
       run: |
-        echo "Cloning GraalVM source from graalvm-community-jdk21u release vm-23.1.3..."
-        git clone --depth 1 --branch vm-23.1.3 https://github.com/graalvm/graalvm-community-jdk21u.git graal
-
-    - name: Clone mx Tool
-      run: |
-        echo "Cloning mx tool..."
-        git clone --depth 1 https://github.com/graalvm/mx.git
-        echo "$(pwd)/mx" >> $GITHUB_PATH  # Add mx to PATH for all steps
-
-    - name: Update mx Cache
-      uses: actions/cache@v4
-      with:
-        path: ~/.mx
-        key: ${{ runner.os }}-mx-${{ hashFiles('**/suite.py') }}
-        restore-keys: ${{ runner.os }}-mx-
+        echo "Cloning GraalVM source from graalvm-community-jdk21u repository..."
+        git clone https://github.com/graalvm/graalvm-community-jdk21u.git
+        cd graalvm-community-jdk21u/vm
 
     - name: Build GraalVM LibGraal
       shell: bash
       run: |
         echo "Building GraalVM LibGraal..."
-        cd graal/vm
-        export JVMCI_VERSION_CHECK="ignore"
-        
-        # Build libgraal with additional flags
-        echo "Command: ${MX_PATH}/mx --env libgraal --java-home=${JAVA_HOME} build"
-        ${MX_PATH}/mx --env libgraal --java-home=${JAVA_HOME} build
+        export MX_ALT_OUTPUT_ROOT=/tmp/libgraal-23.1
+        ${MX_PATH}/mx --env libgraal build -dependencies libjvmcicompiler.so.image
         
         # Set GRAALVM_HOME to the exact location output by graalvm-home with --env libgraal
         echo "Setting GRAALVM_HOME using graalvm-home with libgraal environment..."
-        export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal --java-home=${JAVA_HOME} graalvm-home)
+        export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal graalvm-home)
         echo "GRAALVM_HOME=${GRAALVM_HOME}" >> ${GITHUB_ENV}
 
         # Log the contents of the build directories for verification
@@ -100,43 +76,24 @@ jobs:
         echo "Listing contents of GRAALVM_HOME/lib:"
         ls -altr ${GRAALVM_HOME}/lib/*
 
-    - name: Copy libjvmcicompiler.so to SapMachine JDK
-      shell: bash
+    - name: Set JAVA_HOME to Alternative Output Directory
       run: |
-        echo "Copying libjvmcicompiler.so to the SapMachine JDK lib directory..."
-        LIBGRAAL_PATH="${GITHUB_WORKSPACE}/graal/sdk/mxbuild/linux-amd64/GRAALVM_LIBGRAAL_JAVA21/graalvm-libgraal-openjdk-21.0.2+13.1/lib/libjvmcicompiler.so"
-        SAP_JDK_LIB_DIR="${JAVA_HOME}/lib"
-        
-        if [ -f "$LIBGRAAL_PATH" ]; then
-          sudo cp "$LIBGRAAL_PATH" "$SAP_JDK_LIB_DIR"
-          echo "libjvmcicompiler.so successfully copied to ${SAP_JDK_LIB_DIR}"
-        else
-          echo "libjvmcicompiler.so not found at ${LIBGRAAL_PATH}"
-          exit 1
-        fi
+        echo "Setting JAVA_HOME to alternative output directory..."
+        export JAVA_HOME=${MX_ALT_OUTPUT_ROOT}/graalvm/libgraal-openjdk-21.0.2+13.1
+        echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
 
     - name: Verify Build
       run: |
-        cd graal/vm
-        echo "Verifying mx version and GraalVM home..."
-        echo "Command: ${MX_PATH}/mx --version"
-        ${MX_PATH}/mx --version
-        echo "Command: ${MX_PATH}/mx graalvm-show"
-        ${MX_PATH}/mx graalvm-show
-        echo "Command: ${MX_PATH}/mx graalvm-home"
-        ${MX_PATH}/mx graalvm-home
-        echo "Command: ls ${GRAALVM_HOME}"
-        ls ${GRAALVM_HOME}
-        
-        echo "Command: ${GRAALVM_HOME}/bin/java -version"
-        ${GRAALVM_HOME}/bin/java -version
+        echo "Verifying Java installation in alternative build directory..."
+        echo "Command: ${JAVA_HOME}/bin/java -version"
+        ${JAVA_HOME}/bin/java -version
 
     - name: Verify Graal JIT Usage with JVM Flags
       shell: bash
       run: |
         echo "Verifying Graal JIT usage with JVM flags..."
-        echo "Command: java -XX:+UnlockExperimentalVMOptions -XX:+UseGraalJIT -XX:+PrintFlagsFinal -version"
-        java \
+        echo "Command: ${JAVA_HOME}/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseGraalJIT -XX:+PrintFlagsFinal -version"
+        ${JAVA_HOME}/bin/java \
           -XX:+UnlockExperimentalVMOptions \
           -XX:+UseGraalJIT \
           -XX:+PrintFlagsFinal \
@@ -169,12 +126,12 @@ jobs:
 
         # Compile the test
         echo "Compiling GraalJITTest.java..."
-        javac GraalJITTest.java
+        ${JAVA_HOME}/bin/javac GraalJITTest.java
 
         # Run with Graal-specific logging to verify Graal JIT usage
         echo "Running GraalJITTest with Graal JIT enabled..."
-        echo "Command: java -XX:+UnlockExperimentalVMOptions -XX:+UseGraalJIT -Dgraal.PrintCompilation=true GraalJITTest"
-        java \
+        echo "Command: ${JAVA_HOME}/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseGraalJIT -Dgraal.PrintCompilation=true GraalJITTest"
+        ${JAVA_HOME}/bin/java \
           -XX:+UnlockExperimentalVMOptions \
           -XX:+UseGraalJIT \
           -Dgraal.PrintCompilation=true \
