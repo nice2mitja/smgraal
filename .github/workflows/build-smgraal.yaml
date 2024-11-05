@@ -20,16 +20,24 @@ jobs:
         echo "MX_PYTHON=python3" >> ${GITHUB_ENV}
         echo "LANG=en_US.UTF-8" >> ${GITHUB_ENV}
 
-    - name: Set up SAPMachine JDK
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'sapmachine'
-        java-version: '21.0.4'
+    - name: Clone and Build SapMachine JDK from Source
+      run: |
+        echo "Cloning SapMachine source from sapmachine-21.0.4 release..."
+        wget https://github.com/SAP/SapMachine/archive/refs/tags/sapmachine-21.0.4.tar.gz -O sapmachine-21.0.4.tar.gz
+        tar -xzf sapmachine-21.0.4.tar.gz
+        cd SapMachine-sapmachine-21.0.4
+
+        echo "Configuring and building SapMachine JDK..."
+        ./configure
+        make graal-builder-image
+
+        export JAVA_HOME=$(pwd)/build/linux-x86_64-server-release/images/graal-builder-jdk
+        echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
 
     - name: Verify SAPMachine JDK Installation
       run: |
         echo "Verifying SAPMachine JDK installation..."
-        java -version  # Output SAPMachine JDK version to confirm installation
+        ${JAVA_HOME}/bin/java -version  # Output SapMachine JDK version to confirm installation
 
     - name: Clone GraalVM Source
       run: |
@@ -66,11 +74,11 @@ jobs:
         echo "Building GraalVM LibGraal..."
         cd graal/vm
         export JVMCI_VERSION_CHECK="ignore"
-        
+
         # Build libgraal with additional flags
         echo "Command: ${MX_PATH}/mx --env libgraal --java-home=${JAVA_HOME} build"
         ${MX_PATH}/mx --env libgraal --java-home=${JAVA_HOME} build
-        
+
         # Set GRAALVM_HOME to the exact location output by graalvm-home with --env libgraal
         echo "Setting GRAALVM_HOME using graalvm-home with libgraal environment..."
         export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal --java-home=${JAVA_HOME} graalvm-home)
@@ -88,8 +96,8 @@ jobs:
       run: |
         echo "Copying libjvmcicompiler.so to the SapMachine JDK lib directory..."
         LIBGRAAL_PATH="${GITHUB_WORKSPACE}/graal/sdk/mxbuild/linux-amd64/GRAALVM_LIBGRAAL_JAVA21/graalvm-libgraal-openjdk-21.0.2+13.1/lib/libjvmcicompiler.so"
-        SAP_JDK_LIB_DIR="/opt/hostedtoolcache/Java_SapMachine_jdk/21.0.4/x64/lib"
-        
+        SAP_JDK_LIB_DIR="${JAVA_HOME}/lib"
+
         if [ -f "$LIBGRAAL_PATH" ]; then
           sudo cp "$LIBGRAAL_PATH" "$SAP_JDK_LIB_DIR"
           echo "libjvmcicompiler.so successfully copied to ${SAP_JDK_LIB_DIR}"
