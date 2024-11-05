@@ -21,7 +21,7 @@ jobs:
         echo "MX_PYTHON=python3" >> ${GITHUB_ENV}
         echo "LANG=en_US.UTF-8" >> ${GITHUB_ENV}
 
-    - name: Set up SAPMachine JDK 23
+    - name: Set up SAPMachine JDK
       uses: actions/setup-java@v4
       with:
         distribution: 'sapmachine'
