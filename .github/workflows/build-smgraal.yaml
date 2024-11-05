@@ -20,6 +20,12 @@ jobs:
         echo "MX_PYTHON=python3" >> ${GITHUB_ENV}
         echo "LANG=en_US.UTF-8" >> ${GITHUB_ENV}
 
+    - name: Install Other Dependencies
+      run: |
+        echo "Installing other dependencies..."
+        sudo apt-get update
+        sudo apt-get install -y build-essential zlib1g-dev libffi-dev jq libasound2-dev
+
     - name: Clone and Build SapMachine JDK from Source
       run: |
         echo "Cloning SapMachine repository..."
@@ -51,17 +57,6 @@ jobs:
         echo "Cloning mx tool..."
         git clone --depth 1 https://github.com/graalvm/mx.git
         echo "$(pwd)/mx" >> $GITHUB_PATH  # Add mx to PATH for all steps
-
-    - name: Install Other Dependencies
-      run: |
-        echo "Installing other dependencies..."
-        sudo apt-get update
-        sudo apt-get install -y build-essential zlib1g-dev libffi-dev jq libasound2-dev
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.x'
 
     - name: Update mx Cache
       uses: actions/cache@v4
@@ -152,7 +147,7 @@ jobs:
 
             public static long compute(int x) {
                 long result = 0;
-                for (int i = 0; x < 10_000; i++) {
+                for (int i = 0; i < 10_000; i++) {
                     result += Math.sqrt(x * i);
                 }
                 return result;
