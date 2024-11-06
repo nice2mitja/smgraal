@@ -52,8 +52,19 @@ jobs:
         make graal-builder-image
         echo "make finished mitja, now ls into..."
         ls -altr /home/runner/work/smgraal/smgraal/SapMachine/build/linux-x86_64-server-release/*
+        
+        echo "ls graal-builder-jdk"
+        ls -altr /home/runner/work/smgraal/smgraal/SapMachine/build/linux-x86_64-server-release/images/graal-builder-jdk
+        echo "and java version graal-builder-jdk"
+        /home/runner/work/smgraal/smgraal/SapMachine/build/linux-x86_64-server-release/images/graal-builder-jdk/bin/java -version
 
-        export JAVA_HOME=$(pwd)/build/linux-x86_64-server-release/images/jdk
+        echo "now images/jdk"
+        ls -altr /home/runner/work/smgraal/smgraal/SapMachine/build/linux-x86_64-server-release/images/jdk
+        echo "and java -version images/jdk"
+        /home/runner/work/smgraal/smgraal/SapMachine/build/linux-x86_64-server-release/images/jdk/bin/java -version
+        
+
+        export JAVA_HOME=$(pwd)/build/linux-x86_64-server-release/images/graal-builder-jdk
         echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
 
     - name: Verify SapMachine JDK Installation
@@ -74,7 +85,7 @@ jobs:
 
         echo "Building GraalVM LibGraal..."
         export MX_ALT_OUTPUT_ROOT=/tmp/libgraal-23.1
-        ${MX_PATH}/mx --env libgraal build -dependencies libjvmcicompiler.so.image
+        ${MX_PATH}/mx --env libgraal build --dependencies libjvmcicompiler.so.image
         
         # Set GRAALVM_HOME to the exact location output by graalvm-home with --env libgraal
         echo "Setting GRAALVM_HOME using graalvm-home with libgraal environment..."
