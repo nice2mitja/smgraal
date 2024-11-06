@@ -143,3 +143,26 @@ jobs:
       run: |
         echo "Checking for hs_err log files..."
         find ${GITHUB_WORKSPACE} -type f -name 'hs_err_pid*.log' -exec cat {} \; || echo "No hs_err log files found."
+
+    - name: Upload GraalVM to smgraal Repository
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      run: |
+        echo "Uploading GraalVM build to smgraal repository..."
+
+        # Configure Git
+        git config --global user.name "nice2mitja"
+        git config --global user.email "nice2mitja@users.noreply.github.com"
+
+        # Clone the smgraal repository
+        git clone https://x-access-token:${GH_TOKEN}@github.com/nice2mitja/smgraal.git ${GITHUB_WORKSPACE}/smgraal
+
+        # Copy the GraalVM build files to the smgraal directory
+        cp -r ${GRAALVM_HOME}/* ${GITHUB_WORKSPACE}/smgraal/
+
+        # Commit and push the changes
+        cd ${GITHUB_WORKSPACE}/smgraal
+        git add .
+        git commit -m "Upload GraalVM build from workflow"
+        git push origin main
