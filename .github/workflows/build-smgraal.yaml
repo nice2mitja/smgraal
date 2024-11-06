@@ -75,7 +75,7 @@ jobs:
         cd ${GITHUB_WORKSPACE}/graalvm-community-jdk21u/vm 
 
         echo "Building GraalVM LibGraal..."
-        ${MX_PATH}/mx --env libgraal build --dependencies libjvmcicompiler.so.image
+        ${MX_PATH}/mx --env libgraal build
         
         echo "Setting GRAALVM_HOME using graalvm-home with libgraal environment..."
         export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal graalvm-home)
