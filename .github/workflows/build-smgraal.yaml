@@ -11,12 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Set up environment variables
+    - name: Set up General Environment Variables
       shell: bash
       run: |
-        echo "Setting environment variables..."
+        echo "Setting up general environment variables..."
         echo "MX_GIT_CACHE=refcache" >> ${GITHUB_ENV}
-        echo "MX_PATH=${{ github.workspace }}/mx" >> ${GITHUB_ENV}
         echo "MX_PYTHON=python3" >> ${GITHUB_ENV}
         echo "LANG=en_US.UTF-8" >> ${GITHUB_ENV}
 
@@ -50,6 +49,18 @@ jobs:
       run: |
         echo "Verifying SapMachine JDK installation..."
         ${JAVA_HOME}/bin/java -version  # Output SapMachine JDK version to confirm installation
+
+    - name: Clone mx Tool and Set MX_PATH
+      run: |
+        echo "Cloning mx tool..."
+        git clone https://github.com/graalvm/mx.git ${GITHUB_WORKSPACE}/mx
+        cd ${GITHUB_WORKSPACE}/mx
+
+        echo "Setting up mx..."
+        ./mx update --quiet  # Update dependencies if required
+
+        # Set MX_PATH after mx tool is available
+        echo "MX_PATH=${GITHUB_WORKSPACE}/mx" >> ${GITHUB_ENV}
 
     - name: Clone GraalVM Source
       run: |
