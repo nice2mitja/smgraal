@@ -45,32 +45,23 @@ jobs:
         cd SapMachine
 
         echo "Setting executable permissions for configure script..."
-        chmod +x ./configure  # Ensure configure is executable
+        chmod +x ./configure
 
         echo "Configuring and building SapMachine JDK..."
         ./configure
         make graal-builder-image
-        echo "make finished mitja, now ls into..."
-        ls -altr /home/runner/work/smgraal/smgraal/SapMachine/build/linux-x86_64-server-release/*
-        
-        echo "ls graal-builder-jdk"
-        ls -altr /home/runner/work/smgraal/smgraal/SapMachine/build/linux-x86_64-server-release/images/graal-builder-jdk
-        echo "and java version graal-builder-jdk"
-        /home/runner/work/smgraal/smgraal/SapMachine/build/linux-x86_64-server-release/images/graal-builder-jdk/bin/java -version
-
-        echo "now images/jdk"
-        ls -altr /home/runner/work/smgraal/smgraal/SapMachine/build/linux-x86_64-server-release/images/jdk
-        echo "and java -version images/jdk"
-        /home/runner/work/smgraal/smgraal/SapMachine/build/linux-x86_64-server-release/images/jdk/bin/java -version
-        
 
         export JAVA_HOME=$(pwd)/build/linux-x86_64-server-release/images/graal-builder-jdk
         echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
 
+        # Verifying directories and outputs
+        echo "Verifying build directory contents:"
+        ls -altr ${JAVA_HOME}
+
     - name: Verify SapMachine JDK Installation
       run: |
         echo "Verifying SapMachine JDK installation..."
-        ${JAVA_HOME}/bin/java -version  # Output SapMachine JDK version to confirm installation
+        ${JAVA_HOME}/bin/java -version
 
     - name: Clone GraalVM Source
       run: |
@@ -84,38 +75,33 @@ jobs:
         cd ${GITHUB_WORKSPACE}/graalvm-community-jdk21u/vm 
 
         echo "Building GraalVM LibGraal..."
-        export MX_ALT_OUTPUT_ROOT=/tmp/libgraal-23.1
         ${MX_PATH}/mx --env libgraal build --dependencies libjvmcicompiler.so.image
         
-        # Set GRAALVM_HOME to the exact location output by graalvm-home with --env libgraal
         echo "Setting GRAALVM_HOME using graalvm-home with libgraal environment..."
         export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal graalvm-home)
         echo "GRAALVM_HOME=${GRAALVM_HOME}" >> ${GITHUB_ENV}
 
-        # Log the contents of the build directories for verification
         echo "Listing contents of GRAALVM_HOME:"
         ls -l ${GRAALVM_HOME}
-        
-        echo "Listing contents of GRAALVM_HOME/lib:"
-        ls -altr ${GRAALVM_HOME}/lib/*
 
-    - name: Set JAVA_HOME to Alternative Output Directory
+        echo "Verifying critical files in GRAALVM_HOME/lib:"
+        ls -altr ${GRAALVM_HOME}/lib/libjvmcicompiler.so || echo "Warning: libjvmcicompiler.so not found in expected location"
+
+    - name: Set JAVA_HOME to GRAALVM_HOME
       run: |
-        echo "Setting JAVA_HOME to alternative output directory..."
-        export JAVA_HOME=${MX_ALT_OUTPUT_ROOT}/graalvm/libgraal-openjdk-21.0.2+13.1
+        echo "Setting JAVA_HOME to GRAALVM_HOME directory..."
+        export JAVA_HOME=${GRAALVM_HOME}
         echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
 
     - name: Verify Build
       run: |
-        echo "Verifying Java installation in alternative build directory..."
-        echo "Command: ${JAVA_HOME}/bin/java -version"
+        echo "Verifying Java installation in GRAALVM_HOME directory..."
         ${JAVA_HOME}/bin/java -version
 
     - name: Verify Graal JIT Usage with JVM Flags
       shell: bash
       run: |
         echo "Verifying Graal JIT usage with JVM flags..."
-        echo "Command: ${JAVA_HOME}/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseGraalJIT -XX:+PrintFlagsFinal -version"
         ${JAVA_HOME}/bin/java \
           -XX:+UnlockExperimentalVMOptions \
           -XX:+UseGraalJIT \
@@ -124,11 +110,9 @@ jobs:
 
     - name: Compile and Run Microbenchmark to Test Graal JIT
       shell: bash
-      continue-on-error: true  # Allow job to continue even if this step fails
+      continue-on-error: true
       run: |
         echo "Compiling and running microbenchmark to test Graal JIT..."
-        # Write a Java microbenchmark to verify Graal JIT compilation
-        echo "Writing GraalJITTest.java..."
         cat <<EOF > GraalJITTest.java
         public class GraalJITTest {
             public static void main(String[] args) {
@@ -147,13 +131,7 @@ jobs:
         }
         EOF
 
-        # Compile the test
-        echo "Compiling GraalJITTest.java..."
         ${JAVA_HOME}/bin/javac GraalJITTest.java
-
-        # Run with Graal-specific logging to verify Graal JIT usage
-        echo "Running GraalJITTest with Graal JIT enabled..."
-        echo "Command: ${JAVA_HOME}/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseGraalJIT -Dgraal.PrintCompilation=true GraalJITTest"
         ${JAVA_HOME}/bin/java \
           -XX:+UnlockExperimentalVMOptions \
           -XX:+UseGraalJIT \
@@ -164,11 +142,4 @@ jobs:
       shell: bash
       run: |
         echo "Checking for hs_err log files..."
-        for hs_err_file in ${GITHUB_WORKSPACE}/hs_err_pid*.log; do
-          if [ -f "$hs_err_file" ]; then
-            echo "hs_err log found: $hs_err_file"
-            cat "$hs_err_file"
-          else
-            echo "No hs_err log files found."
-          fi
-        done
+        find ${GITHUB_WORKSPACE} -type f -name 'hs_err_pid*.log' -exec cat {} \; || echo "No hs_err log files found."
