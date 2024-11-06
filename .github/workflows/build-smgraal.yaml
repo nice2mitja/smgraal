@@ -71,6 +71,7 @@ jobs:
       run: |
         echo "Building GraalVM LibGraal..."
         export MX_ALT_OUTPUT_ROOT=/tmp/libgraal-23.1
+        cd graalvm-community-jdk21u/vm
         ${MX_PATH}/mx --env libgraal build -dependencies libjvmcicompiler.so.image
         
         # Set GRAALVM_HOME to the exact location output by graalvm-home with --env libgraal
