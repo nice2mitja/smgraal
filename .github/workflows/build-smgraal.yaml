@@ -29,6 +29,21 @@ jobs:
                                 libxrender-dev libxrandr-dev \
                                 libxtst-dev libxt-dev
 
+    - name: Clone mx Tool and Set MX_PATH
+      run: |
+        echo "Cloning mx tool..."
+        git clone https://github.com/graalvm/mx.git ${GITHUB_WORKSPACE}/mx
+        cd ${GITHUB_WORKSPACE}/mx
+
+        # Set MX_PATH after mx tool is available
+        echo "MX_PATH=${GITHUB_WORKSPACE}/mx" >> ${GITHUB_ENV}
+
+    - name: Clone GraalVM Source
+      run: |
+        echo "Cloning GraalVM source from graalvm-community-jdk21u repository..."
+        git clone https://github.com/graalvm/graalvm-community-jdk21u.git
+        cd graalvm-community-jdk21u/vm
+
     - name: Clone and Build SapMachine JDK from Source
       run: |
         echo "Cloning SapMachine repository..."
@@ -50,23 +65,6 @@ jobs:
         echo "Verifying SapMachine JDK installation..."
         ${JAVA_HOME}/bin/java -version  # Output SapMachine JDK version to confirm installation
 
-    - name: Clone mx Tool and Set MX_PATH
-      run: |
-        echo "Cloning mx tool..."
-        git clone https://github.com/graalvm/mx.git ${GITHUB_WORKSPACE}/mx
-        cd ${GITHUB_WORKSPACE}/mx
-
-        echo "Setting up mx..."
-        ./mx update --quiet  # Update dependencies if required
-
-        # Set MX_PATH after mx tool is available
-        echo "MX_PATH=${GITHUB_WORKSPACE}/mx" >> ${GITHUB_ENV}
-
-    - name: Clone GraalVM Source
-      run: |
-        echo "Cloning GraalVM source from graalvm-community-jdk21u repository..."
-        git clone https://github.com/graalvm/graalvm-community-jdk21u.git
-        cd graalvm-community-jdk21u/vm
 
     - name: Build GraalVM LibGraal
       shell: bash
