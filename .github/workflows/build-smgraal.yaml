@@ -33,13 +33,16 @@ jobs:
       run: |
         echo "Cloning mx tool..."
         git clone https://github.com/graalvm/mx.git ${GITHUB_WORKSPACE}/mx
+        cd ${GITHUB_WORKSPACE}/mx
+
+        # Set MX_PATH after mx tool is available
         echo "MX_PATH=${GITHUB_WORKSPACE}/mx" >> ${GITHUB_ENV}
 
     - name: Clone and Build SapMachine JDK from Source
       run: |
         echo "Cloning SapMachine repository..."
-        git clone --branch sapmachine-21.0.4 --depth 1 https://github.com/SAP/SapMachine.git ${GITHUB_WORKSPACE}/SapMachine
-        cd ${GITHUB_WORKSPACE}/SapMachine
+        git clone --branch sapmachine-21.0.4 --depth 1 https://github.com/SAP/SapMachine.git
+        cd SapMachine
 
         echo "Setting executable permissions for configure script..."
         chmod +x ./configure  # Ensure configure is executable
@@ -48,7 +51,7 @@ jobs:
         ./configure
         make graal-builder-image
         echo "make finished mitja, now ls into..."
-        ls -altr ${GITHUB_WORKSPACE}/SapMachine/build/linux-x86_64-server-release/*
+        ls -altr /home/runner/work/smgraal/smgraal/SapMachine/build/linux-x86_64-server-release/*
 
         export JAVA_HOME=$(pwd)/build/linux-x86_64-server-release/images/graal-builder-jdk
         echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
@@ -62,11 +65,15 @@ jobs:
       run: |
         echo "Cloning GraalVM source from graalvm-community-jdk21u repository..."
         git clone https://github.com/graalvm/graalvm-community-jdk21u.git ${GITHUB_WORKSPACE}/graalvm-community-jdk21u
+        # Ensure we are in the 'vm' directory within GraalVM
         cd ${GITHUB_WORKSPACE}/graalvm-community-jdk21u/vm
 
     - name: Build GraalVM LibGraal
       shell: bash
       run: |
+        echo "Changing to the 'vm' directory to run 'mx'..."
+        cd ${GITHUB_WORKSPACE}/graalvm-community-jdk21u/vm  # Explicitly cd into the 'vm' directory
+
         echo "Building GraalVM LibGraal..."
         export MX_ALT_OUTPUT_ROOT=/tmp/libgraal-23.1
         ${MX_PATH}/mx --env libgraal build -dependencies libjvmcicompiler.so.image
