@@ -87,10 +87,53 @@ jobs:
         export JAVA_HOME=${GRAALVM_HOME}
         echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
 
-    - name: Verify GraalVM Installation with Native Image
+    - name: Verify GraalVM Installation
       run: |
-        echo "Verifying GraalVM installation and native-image support..."
+        echo "Verifying GraalVM installation..."
         ${JAVA_HOME}/bin/java -version
+
+    - name: Verify Graal JIT Usage with JVM Flags
+      shell: bash
+      run: |
+        echo "Verifying Graal JIT usage with JVM flags..."
+        ${JAVA_HOME}/bin/java \
+          -XX:+UnlockExperimentalVMOptions \
+          -XX:+UseGraalJIT \
+          -XX:+PrintFlagsFinal \
+          -version | grep -iE "UseGraalJIT|EnableJVMCI|JVMCI"
+
+    - name: Compile and Run Microbenchmark to Test Graal JIT
+      shell: bash
+      run: |
+        echo "Compiling and running microbenchmark to test Graal JIT..."
+        cat <<EOF > GraalJITTest.java
+        public class GraalJITTest {
+            public static void main(String[] args) {
+                for (int i = 0; i < 100_000; i++) {
+                    compute(i);
+                }
+            }
+
+            public static long compute(int x) {
+                long result = 0;
+                for (int i = 0; i < 10_000; i++) {
+                    result += Math.sqrt(x * i);
+                }
+                return result;
+            }
+        }
+        EOF
+
+        ${JAVA_HOME}/bin/javac GraalJITTest.java
+        ${JAVA_HOME}/bin/java \
+          -XX:+UnlockExperimentalVMOptions \
+          -XX:+UseGraalJIT \
+          -Dgraal.PrintCompilation=true \
+          GraalJITTest
+
+    - name: Verify Native Image Tool
+      run: |
+        echo "Verifying native-image tool installation..."
         ${JAVA_HOME}/bin/native-image --version
 
     - name: Test Native Image by Building Simple Application
