@@ -98,7 +98,7 @@ jobs:
       shell: bash
       run: |
         echo "Changing to the 'vm' directory to run 'mx'..."
-        cd ${GITHUB_WORKSPACE}/graalvm-community-jdk21u/vm 
+        cd ${GITHUB_WORKSPACE}/graalvm-community-jdk21u/substratevm
 
         echo "Building GraalVM with LibGraal, Native Image, and additional components..."
         ${MX_PATH}/mx --native=native-image,lib:jvmcicompiler,lib:native-image-agent,lib:native-image-diagnostics-agent --components="Native Image,LibGraal,svml" build
