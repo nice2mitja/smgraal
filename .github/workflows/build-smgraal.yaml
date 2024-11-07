@@ -44,7 +44,7 @@ jobs:
     - name: Clone and Build SapMachine JDK from Source
       run: |
         echo "Cloning SapMachine repository..."
-        git clone --branch sapmachine-21.0.4 --depth 1 https://github.com/SAP/SapMachine.git
+        git clone --branch sapmachine-21.0.5 --depth 1 https://github.com/SAP/SapMachine.git
         cd SapMachine
 
         echo "Setting executable permissions for configure script..."
