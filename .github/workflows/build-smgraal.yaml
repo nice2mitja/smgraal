@@ -110,7 +110,6 @@ jobs:
 
     - name: Compile and Run Microbenchmark to Test Graal JIT
       shell: bash
-      continue-on-error: true
       run: |
         echo "Compiling and running microbenchmark to test Graal JIT..."
         cat <<EOF > GraalJITTest.java
@@ -144,25 +143,33 @@ jobs:
         echo "Checking for hs_err log files..."
         find ${GITHUB_WORKSPACE} -type f -name 'hs_err_pid*.log' -exec cat {} \; || echo "No hs_err log files found."
 
-    - name: Upload GraalVM to smgraal Repository
-      shell: bash
-      env:
-        GH_TOKEN: ${{ secrets.GH_TOKEN }}
+    - name: Create Archive of GRAALVM_HOME
       run: |
-        echo "Uploading GraalVM build to smgraal repository..."
+        echo "Creating a tar.gz archive of GRAALVM_HOME..."
+        tar -czvf graalvm-build.tar.gz -C ${GRAALVM_HOME} .
 
-        # Configure Git
-        git config --global user.name "nice2mitja"
-        git config --global user.email "nice2mitja@users.noreply.github.com"
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      with:
+        tag_name: "graalvm-release-${{ github.run_number }}"
+        release_name: "GraalVM Release ${{ github.run_number }}"
+        body: "This is an automated release of the GraalVM build."
+        draft: false
+        prerelease: false
 
-        # Clone the smgraal repository
-        git clone https://x-access-token:${GH_TOKEN}@github.com/nice2mitja/smgraal.git ${GITHUB_WORKSPACE}/smgraal
-
-        # Copy the GraalVM build files to the smgraal directory
-        cp -r ${GRAALVM_HOME}/* ${GITHUB_WORKSPACE}/smgraal/
-
-        # Commit and push the changes
-        cd ${GITHUB_WORKSPACE}/smgraal
-        git add .
-        git commit -m "Upload GraalVM build from workflow"
-        git push origin main
+    - name: Upload GraalVM Build Archive as Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: "${{ github.workspace }}/graalvm-build.tar.gz"
+        asset_name: "graalvm-build.tar.gz"
+        asset_content_type: "application/gzip"
