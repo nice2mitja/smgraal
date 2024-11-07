@@ -146,7 +146,9 @@ jobs:
     - name: Create Archive of GRAALVM_HOME
       run: |
         echo "Creating a tar.gz archive of GRAALVM_HOME..."
-        tar -czvf graalvm-build.tar.gz -C ${GRAALVM_HOME} .
+        tar -czvf ${GITHUB_WORKSPACE}/graalvm-build.tar.gz -C ${GRAALVM_HOME} .
+        echo "Listing contents of ${GITHUB_WORKSPACE} to verify archive creation..."
+        ls -al ${GITHUB_WORKSPACE}
 
   release:
     needs: build
