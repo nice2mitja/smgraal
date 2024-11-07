@@ -75,10 +75,11 @@ jobs:
         cd ${GITHUB_WORKSPACE}/graalvm-community-jdk21u/vm 
 
         echo "Building GraalVM with LibGraal and Native Image support..."
-        ${MX_PATH}/mx --env libgraal,native-image build
+        cd graal/substratevm
+        ${MX_PATH}/mx --native=native-image,lib:jvmcicompiler,lib:native-image-agent,lib:native-image-diagnostics-agent --components="Native Image,LibGraal,svml" build
 
         echo "Setting GRAALVM_HOME using graalvm-home with libgraal,native-image environment..."
-        export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal,native-image graalvm-home)
+        export GRAALVM_HOME=$(${MX_PATH}/mx --native=native-image,lib:jvmcicompiler,lib:native-image-agent,lib:native-image-diagnostics-agent --components="Native Image,LibGraal,svml" graalvm-home)
         echo "GRAALVM_HOME=${GRAALVM_HOME}" >> ${GITHUB_ENV}
 
     - name: Set JAVA_HOME to GRAALVM_HOME
