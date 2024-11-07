@@ -1,4 +1,4 @@
-name: Build and Use GraalVM LibGraal with SapMachine
+name: Build and Release GraalVM LibGraal with SapMachine
 
 on:
   push:
@@ -54,10 +54,6 @@ jobs:
         export JAVA_HOME=$(pwd)/build/linux-x86_64-server-release/images/graal-builder-jdk
         echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
 
-        # Verifying directories and outputs
-        echo "Verifying build directory contents:"
-        ls -altr ${JAVA_HOME}
-
     - name: Verify SapMachine JDK Installation
       run: |
         echo "Verifying SapMachine JDK installation..."
@@ -84,73 +80,10 @@ jobs:
         echo "Listing contents of GRAALVM_HOME:"
         ls -l ${GRAALVM_HOME}
 
-        echo "Verifying critical files in GRAALVM_HOME/lib:"
-        ls -altr ${GRAALVM_HOME}/lib/libjvmcicompiler.so || echo "Warning: libjvmcicompiler.so not found in expected location"
-
-    - name: Set JAVA_HOME to GRAALVM_HOME
-      run: |
-        echo "Setting JAVA_HOME to GRAALVM_HOME directory..."
-        export JAVA_HOME=${GRAALVM_HOME}
-        echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
-
-    - name: Verify Build
-      run: |
-        echo "Verifying Java installation in GRAALVM_HOME directory..."
-        ${JAVA_HOME}/bin/java -version
-
-    - name: Verify Graal JIT Usage with JVM Flags
-      shell: bash
-      run: |
-        echo "Verifying Graal JIT usage with JVM flags..."
-        ${JAVA_HOME}/bin/java \
-          -XX:+UnlockExperimentalVMOptions \
-          -XX:+UseGraalJIT \
-          -XX:+PrintFlagsFinal \
-          -version | grep -iE "UseGraalJIT|EnableJVMCI|JVMCI"
-
-    - name: Compile and Run Microbenchmark to Test Graal JIT
-      shell: bash
-      run: |
-        echo "Compiling and running microbenchmark to test Graal JIT..."
-        cat <<EOF > GraalJITTest.java
-        public class GraalJITTest {
-            public static void main(String[] args) {
-                for (int i = 0; i < 100_000; i++) {
-                    compute(i);
-                }
-            }
-
-            public static long compute(int x) {
-                long result = 0;
-                for (int i = 0; i < 10_000; i++) {
-                    result += Math.sqrt(x * i);
-                }
-                return result;
-            }
-        }
-        EOF
-
-        ${JAVA_HOME}/bin/javac GraalJITTest.java
-        ${JAVA_HOME}/bin/java \
-          -XX:+UnlockExperimentalVMOptions \
-          -XX:+UseGraalJIT \
-          -Dgraal.PrintCompilation=true \
-          GraalJITTest
-
-    - name: Output hs_err Logs if Exist
-      shell: bash
-      run: |
-        echo "Checking for hs_err log files..."
-        find ${GITHUB_WORKSPACE} -type f -name 'hs_err_pid*.log' -exec cat {} \; || echo "No hs_err log files found."
-
-    - name: Create Archive of GRAALVM_HOME
-      run: |
-        echo "Creating a tar.gz archive of GRAALVM_HOME..."
+        echo "Creating a tarball of the GRAALVM_HOME directory..."
         tar -czvf ${GITHUB_WORKSPACE}/graalvm-build.tar.gz -C ${GRAALVM_HOME} .
-        echo "Listing contents of ${GITHUB_WORKSPACE} to verify archive creation..."
-        ls -al ${GITHUB_WORKSPACE}
 
-    - name: Upload Artifact
+    - name: Upload GraalVM Build Artifact
       uses: actions/upload-artifact@v4
       with:
         name: graalvm-build
@@ -161,30 +94,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Download Artifact
+    - name: Download GraalVM Build Artifact
       uses: actions/download-artifact@v4
       with:
         name: graalvm-build
-        path: ./
+        path: ${GITHUB_WORKSPACE}
 
     - name: Create GitHub Release
       id: create_release
       uses: actions/create-release@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: "graalvm-release-${{ github.run_number }}"
-        release_name: "GraalVM Release ${{ github.run_number }}"
-        body: "This is an automated release of the GraalVM build."
+        release_name: "GraalVM Build Release ${{ github.run_number }}"
         draft: false
         prerelease: false
 
-    - name: Upload GraalVM Build Archive as Release Asset
+    - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: "./graalvm-build.tar.gz"
-        asset_name: "graalvm-build.tar.gz"
-        asset_content_type: "application/gzip"
+        asset_path: ${GITHUB_WORKSPACE}/graalvm-build.tar.gz
+        asset_name: graalvm-build.tar.gz
+        asset_content_type: application/gzip
