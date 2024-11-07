@@ -42,7 +42,23 @@ jobs:
         # Set MX_PATH after mx tool is available
         echo "MX_PATH=${GITHUB_WORKSPACE}/mx" >> ${GITHUB_ENV}
 
+    - name: Check if SapMachine Artifact Exists
+      id: check_sapmachine_artifact
+      run: |
+        echo "Checking if SapMachine build artifact exists..."
+        ARTIFACT_NAME="sapmachine-${GITHUB_SHA}.tar.gz"
+        ARTIFACT_PATH="/tmp/${ARTIFACT_NAME}"
+        
+        if [ -f "$ARTIFACT_PATH" ]; then
+          echo "SapMachine build artifact found. Skipping rebuild."
+          echo "SAPMACHINE_ARTIFACT_PATH=${ARTIFACT_PATH}" >> $GITHUB_ENV
+        else
+          echo "SapMachine build artifact not found. Proceeding with build."
+          echo "SAPMACHINE_ARTIFACT_PATH=${ARTIFACT_PATH}" >> $GITHUB_ENV
+        fi
+
     - name: Clone and Build SapMachine JDK from Source
+      if: steps.check_sapmachine_artifact.outputs.SAPMACHINE_ARTIFACT_PATH == ''
       run: |
         echo "Cloning SapMachine repository..."
         git clone --branch sapmachine-21.0.5 --depth 1 https://github.com/SAP/SapMachine.git
@@ -58,10 +74,20 @@ jobs:
         export JAVA_HOME=$(pwd)/build/linux-x86_64-server-release/images/graal-builder-jdk
         echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
 
-    - name: Verify SapMachine JDK Installation
-      run: |
-        echo "Verifying SapMachine JDK installation..."
-        ${JAVA_HOME}/bin/java -version
+        # Creating artifact tar.gz to be reused
+        echo "Creating SapMachine artifact..."
+        tar -czf ${SAPMACHINE_ARTIFACT_PATH} -C $(pwd)/build/linux-x86_64-server-release/images .
+
+        # Verifying build artifact
+        echo "Verifying artifact..."
+        ls -altr ${SAPMACHINE_ARTIFACT_PATH}
+
+    - name: Upload SapMachine Build Artifact
+      if: steps.check_sapmachine_artifact.outputs.SAPMACHINE_ARTIFACT_PATH == ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: sapmachine-build
+        path: ${{ env.SAPMACHINE_ARTIFACT_PATH }}
 
     - name: Clone GraalVM Source
       run: |
@@ -74,12 +100,11 @@ jobs:
         echo "Changing to the 'vm' directory to run 'mx'..."
         cd ${GITHUB_WORKSPACE}/graalvm-community-jdk21u/vm 
 
-        echo "Building GraalVM with LibGraal and Native Image support..."
-        cd graal/substratevm
+        echo "Building GraalVM with LibGraal, Native Image, and additional components..."
         ${MX_PATH}/mx --native=native-image,lib:jvmcicompiler,lib:native-image-agent,lib:native-image-diagnostics-agent --components="Native Image,LibGraal,svml" build
 
         echo "Setting GRAALVM_HOME using graalvm-home with libgraal,native-image environment..."
-        export GRAALVM_HOME=$(${MX_PATH}/mx --native=native-image,lib:jvmcicompiler,lib:native-image-agent,lib:native-image-diagnostics-agent --components="Native Image,LibGraal,svml" graalvm-home)
+        export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal,native-image graalvm-home)
         echo "GRAALVM_HOME=${GRAALVM_HOME}" >> ${GITHUB_ENV}
 
     - name: Set JAVA_HOME to GRAALVM_HOME
