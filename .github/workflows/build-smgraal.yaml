@@ -77,11 +77,13 @@ jobs:
         export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal graalvm-home)
         echo "GRAALVM_HOME=${GRAALVM_HOME}" >> ${GITHUB_ENV}
 
-        echo "Listing contents of GRAALVM_HOME:"
-        ls -l ${GRAALVM_HOME}
-
         echo "Creating a tarball of the GRAALVM_HOME directory..."
-        tar -czvf graalvm-build.tar.gz -C ${GRAALVM_HOME} .
+        cd ${GRAALVM_HOME}
+        tar -czvf ${GITHUB_WORKSPACE}/graalvm-build.tar.gz . 
+
+        # Verify the tar.gz creation
+        echo "Verifying tarball creation..."
+        ls -l ${GITHUB_WORKSPACE}/graalvm-build.tar.gz
 
     - name: Upload GraalVM Build Artifact
       uses: actions/upload-artifact@v4
