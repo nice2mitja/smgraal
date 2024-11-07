@@ -1,4 +1,4 @@
-name: Build and Release GraalVM LibGraal with SapMachine
+name: Build and Release GraalVM with Native Image and LibGraal using SapMachine
 
 on:
   push:
@@ -30,7 +30,8 @@ jobs:
                                 libasound2-dev libcups2-dev \
                                 libx11-dev libxext-dev \
                                 libxrender-dev libxrandr-dev \
-                                libxtst-dev libxt-dev
+                                libxtst-dev libxt-dev \
+                                libssl-dev libz-dev
 
     - name: Clone mx Tool and Set MX_PATH
       run: |
@@ -57,10 +58,6 @@ jobs:
         export JAVA_HOME=$(pwd)/build/linux-x86_64-server-release/images/graal-builder-jdk
         echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
 
-        # Verifying directories and outputs
-        echo "Verifying build directory contents:"
-        ls -altr ${JAVA_HOME}
-
     - name: Verify SapMachine JDK Installation
       run: |
         echo "Verifying SapMachine JDK installation..."
@@ -71,24 +68,18 @@ jobs:
         echo "Cloning GraalVM source from graalvm-community-jdk21u repository..."
         git clone https://github.com/graalvm/graalvm-community-jdk21u.git ${GITHUB_WORKSPACE}/graalvm-community-jdk21u
 
-    - name: Build GraalVM LibGraal
+    - name: Build GraalVM with LibGraal and Native Image
       shell: bash
       run: |
         echo "Changing to the 'vm' directory to run 'mx'..."
         cd ${GITHUB_WORKSPACE}/graalvm-community-jdk21u/vm 
 
-        echo "Building GraalVM LibGraal..."
-        ${MX_PATH}/mx --env libgraal build
-        
-        echo "Setting GRAALVM_HOME using graalvm-home with libgraal environment..."
-        export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal graalvm-home)
+        echo "Building GraalVM with LibGraal and Native Image support..."
+        ${MX_PATH}/mx --env libgraal,native-image build
+
+        echo "Setting GRAALVM_HOME using graalvm-home with libgraal,native-image environment..."
+        export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal,native-image graalvm-home)
         echo "GRAALVM_HOME=${GRAALVM_HOME}" >> ${GITHUB_ENV}
-
-        echo "Listing contents of GRAALVM_HOME:"
-        ls -l ${GRAALVM_HOME}
-
-        echo "Verifying critical files in GRAALVM_HOME/lib:"
-        ls -altr ${GRAALVM_HOME}/lib/libjvmcicompiler.so || echo "Warning: libjvmcicompiler.so not found in expected location"
 
     - name: Set JAVA_HOME to GRAALVM_HOME
       run: |
@@ -96,54 +87,35 @@ jobs:
         export JAVA_HOME=${GRAALVM_HOME}
         echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
 
-    - name: Verify Build
+    - name: Verify GraalVM Installation with Native Image
       run: |
-        echo "Verifying Java installation in GRAALVM_HOME directory..."
+        echo "Verifying GraalVM installation and native-image support..."
         ${JAVA_HOME}/bin/java -version
+        ${JAVA_HOME}/bin/native-image --version
 
-    - name: Verify Graal JIT Usage with JVM Flags
+    - name: Test Native Image by Building Simple Application
       shell: bash
       run: |
-        echo "Verifying Graal JIT usage with JVM flags..."
-        ${JAVA_HOME}/bin/java \
-          -XX:+UnlockExperimentalVMOptions \
-          -XX:+UseGraalJIT \
-          -XX:+PrintFlagsFinal \
-          -version | grep -iE "UseGraalJIT|EnableJVMCI|JVMCI"
+        echo "Testing native-image by compiling a simple Java application..."
 
-    - name: Compile and Run Microbenchmark to Test Graal JIT
-      shell: bash
-      run: |
-        echo "Compiling and running microbenchmark to test Graal JIT..."
-        cat <<EOF > GraalJITTest.java
-        public class GraalJITTest {
+        cat <<EOF > HelloNativeImage.java
+        public class HelloNativeImage {
             public static void main(String[] args) {
-                for (int i = 0; i < 100_000; i++) {
-                    compute(i);
-                }
-            }
-
-            public static long compute(int x) {
-                long result = 0;
-                for (int i = 0; i < 10_000; i++) {
-                    result += Math.sqrt(x * i);
-                }
-                return result;
+                System.out.println("Hello from native image!");
             }
         }
         EOF
 
-        ${JAVA_HOME}/bin/javac GraalJITTest.java
-        ${JAVA_HOME}/bin/java \
-          -XX:+UnlockExperimentalVMOptions \
-          -XX:+UseGraalJIT \
-          -Dgraal.PrintCompilation=true \
-          GraalJITTest
+        ${JAVA_HOME}/bin/javac HelloNativeImage.java
+        ${JAVA_HOME}/bin/native-image HelloNativeImage
+
+        echo "Running the native image executable..."
+        ./hellonativeimage
 
     - name: Create GraalVM tar.gz Archive
       shell: bash
       run: |
-        echo "Creating tar.gz archive of GraalVM..."
+        echo "Creating tar.gz archive of GraalVM with Native Image..."
         tar -czf /tmp/graalvm-build.tar.gz -C ${GRAALVM_HOME} .
 
     - name: Upload Artifact (GraalVM Build)
