@@ -81,13 +81,13 @@ jobs:
         ls -l ${GRAALVM_HOME}
 
         echo "Creating a tarball of the GRAALVM_HOME directory..."
-        tar -czvf ${GITHUB_WORKSPACE}/graalvm-build.tar.gz -C ${GRAALVM_HOME} .
+        tar -czvf graalvm-build.tar.gz -C ${GRAALVM_HOME} .
 
     - name: Upload GraalVM Build Artifact
       uses: actions/upload-artifact@v4
       with:
         name: graalvm-build
-        path: ${GITHUB_WORKSPACE}/graalvm-build.tar.gz
+        path: graalvm-build.tar.gz
 
   release:
     needs: build
@@ -98,7 +98,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: graalvm-build
-        path: ${GITHUB_WORKSPACE}
+        path: .
 
     - name: Create GitHub Release
       id: create_release
@@ -115,6 +115,6 @@ jobs:
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${GITHUB_WORKSPACE}/graalvm-build.tar.gz
+        asset_path: ./graalvm-build.tar.gz
         asset_name: graalvm-build.tar.gz
         asset_content_type: application/gzip
