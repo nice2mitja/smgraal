@@ -150,10 +150,23 @@ jobs:
         echo "Listing contents of ${GITHUB_WORKSPACE} to verify archive creation..."
         ls -al ${GITHUB_WORKSPACE}
 
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: graalvm-build
+        path: ${GITHUB_WORKSPACE}/graalvm-build.tar.gz
+
   release:
     needs: build
     runs-on: ubuntu-latest
+
     steps:
+    - name: Download Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: graalvm-build
+        path: ./
+
     - name: Create GitHub Release
       id: create_release
       uses: actions/create-release@v1
@@ -172,6 +185,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: "${{ github.workspace }}/graalvm-build.tar.gz"
+        asset_path: "./graalvm-build.tar.gz"
         asset_name: "graalvm-build.tar.gz"
         asset_content_type: "application/gzip"
