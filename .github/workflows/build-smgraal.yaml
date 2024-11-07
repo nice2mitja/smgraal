@@ -77,19 +77,18 @@ jobs:
         export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal graalvm-home)
         echo "GRAALVM_HOME=${GRAALVM_HOME}" >> ${GITHUB_ENV}
 
-        echo "Creating a tarball of the GRAALVM_HOME directory..."
-        cd ${GRAALVM_HOME}
-        tar -czvf ${GITHUB_WORKSPACE}/graalvm-build.tar.gz . 
+        echo "Creating a tarball of the GRAALVM_HOME directory in /tmp..."
+        tar -czvf /tmp/graalvm-build.tar.gz -C ${GRAALVM_HOME} .
 
         # Verify the tar.gz creation
         echo "Verifying tarball creation..."
-        ls -l ${GITHUB_WORKSPACE}/graalvm-build.tar.gz
+        ls -l /tmp/graalvm-build.tar.gz
 
     - name: Upload GraalVM Build Artifact
       uses: actions/upload-artifact@v4
       with:
         name: graalvm-build
-        path: graalvm-build.tar.gz
+        path: /tmp/graalvm-build.tar.gz
 
   release:
     needs: build
@@ -100,7 +99,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: graalvm-build
-        path: .
+        path: /tmp
 
     - name: Create GitHub Release
       id: create_release
@@ -117,6 +116,6 @@ jobs:
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./graalvm-build.tar.gz
+        asset_path: /tmp/graalvm-build.tar.gz
         asset_name: graalvm-build.tar.gz
         asset_content_type: application/gzip
