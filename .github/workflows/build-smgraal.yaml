@@ -124,4 +124,133 @@ jobs:
         mkdir -p ${GITHUB_WORKSPACE}/sapmachine
         tar -xzf /tmp/sapmachine-${GITHUB_SHA}.tar.gz -C ${GITHUB_WORKSPACE}/sapmachine
 
-    # Remaining steps as they were originally for building GraalVM, verifying, and creating final artifacts
+    - name: Clone GraalVM Source
+      run: |
+        echo "Cloning GraalVM source from graalvm-community-jdk21u repository..."
+        git clone https://github.com/graalvm/graalvm-community-jdk21u.git ${GITHUB_WORKSPACE}/graalvm-community-jdk21u
+
+    - name: Build GraalVM with LibGraal and Native Image
+      shell: bash
+      run: |
+        echo "Changing to the 'vm' directory to run 'mx'..."
+        cd ${GITHUB_WORKSPACE}/graalvm-community-jdk21u/vm 
+
+        echo "Building GraalVM with LibGraal, Native Image, and additional components..."
+        ${MX_PATH}/mx --native=native-image,lib:jvmcicompiler,lib:native-image-agent,lib:native-image-diagnostics-agent --components="Native Image,LibGraal,svml" build
+
+        echo "Setting GRAALVM_HOME using graalvm-home with libgraal,native-image environment..."
+        export GRAALVM_HOME=$(${MX_PATH}/mx --native=native-image,lib:jvmcicompiler,lib:native-image-agent,lib:native-image-diagnostics-agent --components="Native Image,LibGraal,svml" graalvm-home)
+        echo "GRAALVM_HOME=${GRAALVM_HOME}" >> ${GITHUB_ENV}
+
+    - name: Set JAVA_HOME to GRAALVM_HOME
+      run: |
+        echo "Setting JAVA_HOME to GRAALVM_HOME directory..."
+        export JAVA_HOME=${GRAALVM_HOME}
+        echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
+
+    - name: Verify GraalVM Installation
+      run: |
+        echo "Verifying GraalVM installation..."
+        ${JAVA_HOME}/bin/java -version
+
+    - name: Compile and Run Native Image Test
+      shell: bash
+      run: |
+        echo "Testing native image compilation by creating a HelloWorld binary..."
+        cat <<EOF > HelloWorld.java
+        public class HelloWorld {
+            public static void main(String[] args) {
+                System.out.println("Hello, GraalVM Native Image!");
+            }
+        }
+        EOF
+
+        # Compile to a native binary using native-image
+        ${GRAALVM_HOME}/bin/native-image HelloWorld
+
+        # Run the generated native executable
+        echo "Running the native executable to confirm it works..."
+        ./helloworld
+
+    - name: Verify Graal JIT Usage with JVM Flags
+      shell: bash
+      run: |
+        echo "Verifying Graal JIT usage with JVM flags..."
+        ${JAVA_HOME}/bin/java \
+          -XX:+UnlockExperimentalVMOptions \
+          -XX:+UseGraalJIT \
+          -XX:+PrintFlagsFinal \
+          -version | grep -iE "UseGraalJIT|EnableJVMCI|JVMCI"
+
+    - name: Compile and Run Microbenchmark to Test Graal JIT
+      shell: bash
+      run: |
+        echo "Compiling and running microbenchmark to test Graal JIT..."
+        cat <<EOF > GraalJITTest.java
+        public class GraalJITTest {
+            public static void main(String[] args) {
+                for (int i = 0; i < 100_000; i++) {
+                    compute(i);
+                }
+            }
+
+            public static long compute(int x) {
+                long result = 0;
+                for (int i = 0; i < 10_000; i++) {
+                    result += Math.sqrt(x * i);
+                }
+                return result;
+            }
+        }
+        EOF
+
+        ${JAVA_HOME}/bin/javac GraalJITTest.java
+        ${JAVA_HOME}/bin/java \
+          -XX:+UnlockExperimentalVMOptions \
+          -XX:+UseGraalJIT \
+          -Dgraal.PrintCompilation=true \
+          GraalJITTest
+
+    - name: Create GraalVM tar.gz Archive
+      shell: bash
+      run: |
+        echo "Creating tar.gz archive of GraalVM..."
+        tar -czf /tmp/graalvm-build.tar.gz -C ${GRAALVM_HOME} .
+
+    - name: Upload Artifact (GraalVM Build)
+      uses: actions/upload-artifact@v4
+      with:
+        name: graalvm-build
+        path: /tmp/graalvm-build.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download GraalVM Build Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: graalvm-build
+        path: /tmp
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      with:
+        tag_name: "graalvm-release-${{ github.run_number }}"
+        release_name: "GraalVM Build Release ${{ github.run_number }}"
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: /tmp/graalvm-build.tar.gz
+        asset_name: graalvm-build.tar.gz
+        asset_content_type: application/gzip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
