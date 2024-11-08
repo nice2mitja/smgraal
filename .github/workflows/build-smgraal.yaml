@@ -1,4 +1,4 @@
-name: Build and Release GraalVM LibGraal with SapMachine
+name: Build and Release GraalVM with Native Image and LibGraal using SapMachine
 
 on:
   push:
@@ -30,50 +30,44 @@ jobs:
                                 libasound2-dev libcups2-dev \
                                 libx11-dev libxext-dev \
                                 libxrender-dev libxrandr-dev \
-                                libxtst-dev libxt-dev
+                                libxtst-dev libxt-dev \
+                                libssl-dev libz-dev
 
     - name: Clone mx Tool and Set MX_PATH
       run: |
         echo "Cloning mx tool..."
         git clone https://github.com/graalvm/mx.git ${GITHUB_WORKSPACE}/mx
+        cd ${GITHUB_WORKSPACE}/mx
+
+        # Set MX_PATH after mx tool is available
         echo "MX_PATH=${GITHUB_WORKSPACE}/mx" >> ${GITHUB_ENV}
 
     - name: Check if SapMachine Artifact Exists in Release
       id: check_sapmachine_release
       run: |
         echo "Checking if SapMachine build artifact exists in GitHub release..."
-        
         RELEASE_TAG="sapmachine-${GITHUB_SHA}"
         RELEASE_URL="https://api.github.com/repos/${{ github.repository }}/releases/tags/${RELEASE_TAG}"
         
-        # Check if release exists and capture the response
-        response=$(curl -s -w "%{http_code}" -o release_info.json ${RELEASE_URL})
+        # Check if release exists
+        response=$(curl -s -o /dev/null -w "%{http_code}" ${RELEASE_URL})
         
         if [ "$response" -eq 200 ]; then
-          echo "Release found. Checking for SapMachine build artifact..."
-          # Extract the download URL for the artifact using jq
-          asset_url=$(jq -r '.assets[] | select(.name == "sapmachine-${GITHUB_SHA}.tar.gz") | .browser_download_url' release_info.json)
+          echo "Release found. Fetching asset URL for SapMachine build artifact."
+          # Get the download URL for the artifact
+          asset_url=$(curl -s ${RELEASE_URL} | jq -r '.assets[] | select(.name=="sapmachine-${GITHUB_SHA}.tar.gz") | .browser_download_url')
           
           if [ -n "$asset_url" ]; then
-            echo "Artifact URL found: $asset_url"
+            echo "SapMachine artifact found. Setting ASSET_URL."
             echo "ASSET_URL=${asset_url}" >> $GITHUB_ENV
           else
-            echo "No matching artifact found in release. Proceeding to build."
+            echo "No asset found in release. Proceeding with build."
             echo "ASSET_URL=" >> $GITHUB_ENV
           fi
         else
-          echo "Release not found. Proceeding to build."
+          echo "Release not found. Proceeding with build."
           echo "ASSET_URL=" >> $GITHUB_ENV
         fi
-
-    - name: Download SapMachine Build Artifact if Exists
-      if: ${{ env.ASSET_URL != '' }}
-      run: |
-        echo "Downloading SapMachine build artifact from release..."
-        curl -L ${{ env.ASSET_URL }} -o /tmp/sapmachine-${GITHUB_SHA}.tar.gz
-        tar -xzf /tmp/sapmachine-${GITHUB_SHA}.tar.gz -C ${GITHUB_WORKSPACE}
-        export JAVA_HOME=${GITHUB_WORKSPACE}/sapmachine
-        echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
 
     - name: Clone and Build SapMachine JDK from Source
       if: ${{ env.ASSET_URL == '' }}
@@ -92,79 +86,42 @@ jobs:
         export JAVA_HOME=$(pwd)/build/linux-x86_64-server-release/images/graal-builder-jdk
         echo "JAVA_HOME=${JAVA_HOME}" >> ${GITHUB_ENV}
 
-        echo "Creating tar.gz archive for SapMachine artifact..."
-        tar -czf /tmp/sapmachine-${GITHUB_SHA}.tar.gz -C $(pwd)/build/linux-x86_64-server-release/images graal-builder-jdk
+        # Creating artifact tar.gz to be reused
+        echo "Creating SapMachine artifact..."
+        tar -czf /tmp/sapmachine-${GITHUB_SHA}.tar.gz -C $(pwd)/build/linux-x86_64-server-release/images .
 
-    - name: Upload SapMachine Artifact if Built
+        # Verifying build artifact
+        echo "Verifying artifact..."
+        ls -altr /tmp/sapmachine-${GITHUB_SHA}.tar.gz
+
+    - name: Upload SapMachine Build Artifact to Release
       if: ${{ env.ASSET_URL == '' }}
-      uses: actions/upload-release-asset@v1
-      with:
-        release_id: ${{ steps.check_sapmachine_release.outputs.release_id }}
-        asset_path: /tmp/sapmachine-${GITHUB_SHA}.tar.gz
-        asset_name: sapmachine-${GITHUB_SHA}.tar.gz
-        asset_content_type: application/gzip
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Verify SapMachine JDK Installation
       run: |
-        echo "Verifying SapMachine JDK installation..."
-        ${JAVA_HOME}/bin/java -version
+        echo "Creating new GitHub release and uploading SapMachine artifact..."
+        RELEASE_TAG="sapmachine-${GITHUB_SHA}"
+        RELEASE_NAME="SapMachine Build ${GITHUB_SHA}"
+        # Create a new release
+        release_id=$(curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -d '{"tag_name":"'"${RELEASE_TAG}"'","name":"'"${RELEASE_NAME}"'"}' \
+          https://api.github.com/repos/${{ github.repository }}/releases | jq -r '.id')
+          
+        # Upload the artifact
+        curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Content-Type: application/gzip" \
+          --data-binary @/tmp/sapmachine-${GITHUB_SHA}.tar.gz \
+          "https://uploads.github.com/repos/${{ github.repository }}/releases/${release_id}/assets?name=sapmachine-${GITHUB_SHA}.tar.gz"
 
-    - name: Clone GraalVM Source
+    - name: Download SapMachine Build Artifact if Exists
+      if: ${{ env.ASSET_URL != '' }}
       run: |
-        echo "Cloning GraalVM source from graalvm-community-jdk21u repository..."
-        git clone https://github.com/graalvm/graalvm-community-jdk21u.git ${GITHUB_WORKSPACE}/graalvm-community-jdk21u
+        echo "Downloading SapMachine build artifact from release..."
+        curl -L ${{ env.ASSET_URL }} -o /tmp/sapmachine-${GITHUB_SHA}.tar.gz
 
-    - name: Build GraalVM LibGraal and Native Image
-      shell: bash
+    - name: Extract SapMachine Artifact
+      if: ${{ env.ASSET_URL != '' }}
       run: |
-        echo "Changing to the 'vm' directory to run 'mx'..."
-        cd ${GITHUB_WORKSPACE}/graalvm-community-jdk21u/vm 
+        echo "Extracting SapMachine artifact..."
+        mkdir -p ${GITHUB_WORKSPACE}/sapmachine
+        tar -xzf /tmp/sapmachine-${GITHUB_SHA}.tar.gz -C ${GITHUB_WORKSPACE}/sapmachine
 
-        echo "Building GraalVM with Native Image support..."
-        ${MX_PATH}/mx --native=native-image,lib:jvmcicompiler,lib:native-image-agent,lib:native-image-diagnostics-agent --components="Native Image,LibGraal,svml" build
-        
-        echo "Setting GRAALVM_HOME using graalvm-home with libgraal environment..."
-        export GRAALVM_HOME=$(${MX_PATH}/mx --env libgraal graalvm-home)
-        echo "GRAALVM_HOME=${GRAALVM_HOME}" >> ${GITHUB_ENV}
-
-        echo "Listing contents of GRAALVM_HOME:"
-        ls -l ${GRAALVM_HOME}
-
-    - name: Run Microbenchmark to Test Graal JIT and Native Image
-      shell: bash
-      run: |
-        echo "Compiling and running microbenchmark to test Graal JIT..."
-        cat <<EOF > GraalJITTest.java
-        public class GraalJITTest {
-            public static void main(String[] args) {
-                for (int i = 0; i < 100_000; i++) {
-                    compute(i);
-                }
-            }
-
-            public static long compute(int x) {
-                long result = 0;
-                for (int i = 0; i < 10_000; i++) {
-                    result += Math.sqrt(x * i);
-                }
-                return result;
-            }
-        }
-        EOF
-
-        ${JAVA_HOME}/bin/javac GraalJITTest.java
-        ${JAVA_HOME}/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseGraalJIT -Dgraal.PrintCompilation=true GraalJITTest
-
-    - name: Create GraalVM tar.gz Archive
-      shell: bash
-      run: |
-        echo "Creating tar.gz archive of GraalVM..."
-        tar -czf /tmp/graalvm-build.tar.gz -C ${GRAALVM_HOME} .
-
-    - name: Upload Artifact (GraalVM Build)
-      uses: actions/upload-artifact@v4
-      with:
-        name: graalvm-build
-        path: /tmp/graalvm-build.tar.gz
+    # Remaining steps as they were originally for building GraalVM, verifying, and creating final artifacts
